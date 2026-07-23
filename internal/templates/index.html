@@ -1,0 +1,18 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Açık Ticketlar</title>
+</head>
+<body>
+<h1>Açık Ticket Listesi</h1>
+<ul>
+    {{range .Tickets}}
+    <li><strong>{{.subject}}</strong>: {{.description}}</li>
+    {{else}}
+    <li>Hiç ticket bulunamadı.</li>
+    {{end}}
+</ul>
+</body>
+</html>

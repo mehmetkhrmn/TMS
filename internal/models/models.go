@@ -14,8 +14,9 @@ type Ticket struct {
 }
 
 type Representative struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Answer struct {
@@ -24,4 +25,9 @@ type Answer struct {
 	RepID      int       `json:"agent_id"`
 	TicketID   int       `json:"ticket_id"`
 	AnsweredAt time.Time `json:"answered_at"`
+}
+type Customer struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
 }
