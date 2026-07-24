@@ -10,7 +10,7 @@ type Ticket struct {
 	CustomerEmail string    `json:"customer_email"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
-	IsDone        bool      `json:"is_done"`
+	Status        string    `json:"status"`
 }
 
 type Representative struct {
@@ -22,9 +22,10 @@ type Representative struct {
 type Answer struct {
 	ID         int       `json:"id"`
 	AnswerText string    `json:"answer"`
-	RepID      int       `json:"agent_id"`
+	RepID      int       `json:"representative_id"`
 	TicketID   int       `json:"ticket_id"`
 	AnsweredAt time.Time `json:"answered_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 type Customer struct {
 	ID        int       `json:"id"`

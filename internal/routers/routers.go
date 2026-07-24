@@ -19,10 +19,61 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	//tickets
 	//update
-	router.PUT("/tickets/update/:id", func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+
+	router.PUT("/answers/:answer_id", func(context *gin.Context) {
+		id, err := strconv.Atoi(context.Param("answer_id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id"})
+			context.JSON(http.StatusBadRequest, gin.H{"error": "answer_id"})
+			return
+		}
+		var answer models.Answer
+		if err := context.ShouldBind(&answer); err != nil { //yine aynı mantıkla var olan verileri bindiliyoruz id yi urlden alcaz
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		updateAnswer(id, &answer, context, repo)
+	})
+	router.POST("/tickets/:ticket_id/answers", func(context *gin.Context) {
+		id, err := strconv.Atoi(context.Param("ticket_id"))
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id"})
+			return
+		}
+		var answer models.Answer
+		if err := context.ShouldBind(&answer); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		answer.TicketID = id //burada JSON dan alınan değeri değiştiriyoruz JSON daki veri manipüle edilebilir
+		createAnswer(&answer, context, repo)
+	})
+
+	router.GET("/tickets/:ticket_id/answers", func(context *gin.Context) {
+		id, err := strconv.Atoi(context.Param("ticket_id"))
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id"})
+			return
+		}
+		getAnswers(id, context, repo)
+	})
+	router.GET("/tickets/:ticket_id/answers/:answer_id", func(context *gin.Context) {
+		tid, err := strconv.Atoi(context.Param("ticket_id"))
+
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id"})
+			return
+		}
+		aid, err := strconv.Atoi(context.Param("answer_id"))
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "answer_id"})
+			return
+		}
+		getAnswer(tid, aid, context, repo)
+	})
+	router.PUT("/tickets/:ticket_id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("ticket_id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id"})
 			return
 		}
 		var ticket models.Ticket
@@ -32,38 +83,48 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		}
 		updateTicket(id, &ticket, c, repo)
 	})
-	//açık ticket görüntüle
-	router.GET("tickets/open", func(context *gin.Context) {
-		getOpenTickets(context, repo)
+	//statusa göre ticket döndür
+	router.GET("tickets/", func(context *gin.Context) {
+		status := context.Query("ticket_status")
 
+		switch status {
+		case "open", "closed", "in_progress", "resolved":
+			getTicketWith(status, context, repo)
+
+		case "":
+			getAllTickets(context, repo)
+		default:
+			context.JSON(http.StatusBadRequest, gin.H{"error": "ticket_status is unknown"})
+			return
+		}
 	})
 
 	//tek bir ticket görüntüleme
-	router.GET("/tickets/:id", func(context *gin.Context) {
-		idString := context.Param("id")   //url den id yi aldık
-		id, err := strconv.Atoi(idString) //int ye çevir
+	router.GET("/tickets/:ticket_id", func(context *gin.Context) {
+		idString := (context.Param("ticket_id")) //url den id yi aldık
+		id, err := strconv.Atoi(idString)        //int ye çevir
 		if err != nil {
 			context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		getTicket(id, context, repo)
 	})
-	//setDone
-	router.POST("tickets/:id", func(context *gin.Context) {
-		idString := context.Param("id")
-		doneString := context.Query("done") //gin iki tane parametre almıyo o yüzden query den alıyoz
+	//set status
+	router.PATCH("tickets/:ticket_id", func(context *gin.Context) {
+		idString := context.Param("ticket_id")
+		statusString := context.Query("status") //gin iki tane parametre almıyo o yüzden query den alıyoz
 		id, err := strconv.Atoi(idString)
 		if err != nil {
 			context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		done, err := strconv.ParseBool(doneString)
+		status := statusString
 		if err != nil {
 			context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		setTicketDone(id, done, context, repo)
+		setTicketStatus(id, status, context, repo)
 
 	})
 	//bütün ticketleri almak için
@@ -103,13 +164,14 @@ func getAllTickets(c *gin.Context, repo *repository.Repository) {
 }
 
 //todo:açık olan ticketleri  getir
-func getOpenTickets(c *gin.Context, repo *repository.Repository) {
-	tickets, error := repo.GetAllOpen()
+func getTicketWith(status string, c *gin.Context, repo *repository.Repository) {
+
+	tickets, error := repo.GetAllWithStatus(status)
 	if error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, tickets) //ticket structuresinde JSON olarak ta tanımlama yaptığımız için direkt ona göre parselanıyor
+	c.JSON(http.StatusOK, tickets)
 
 }
 
@@ -124,20 +186,53 @@ func getTicket(id int, c *gin.Context, repo *repository.Repository) {
 }
 
 // todo ticketi editle
-func setTicketDone(id int, isDone bool, c *gin.Context, repo *repository.Repository) {
-	err := repo.SetDone(id, isDone)
+func setTicketStatus(id int, status string, c *gin.Context, repo *repository.Repository) {
+	err := repo.SetStatus(id, status)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(201, gin.H{"id": id, "done": isDone})
+	c.JSON(200, gin.H{"id": id, "status": status})
 }
 
 func updateTicket(id int, ticket *models.Ticket, c *gin.Context, repo *repository.Repository) {
 
-	err := repo.Update(id, ticket)
+	err := repo.UpdateTicket(id, ticket)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "repo"})
 	}
 	c.JSON(201, "updated")
+}
+
+// get update create
+func createAnswer(answer *models.Answer, c *gin.Context, repo *repository.Repository) {
+	err := repo.CreateAnswer(answer)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo"})
+	}
+	c.JSON(201, answer)
+}
+func getAnswer(ticketId int, answerId int, c *gin.Context, repo *repository.Repository) {
+	answer, error := repo.GetAnswer(ticketId, answerId)
+	if error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
+		return
+	}
+	c.JSON(200, answer)
+}
+func updateAnswer(id int, ticket *models.Answer, c *gin.Context, repo *repository.Repository) {
+	err := repo.UpdateAnswer(id, ticket)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo"})
+	}
+	c.JSON(201, "updated")
+
+}
+func getAnswers(id int, c *gin.Context, repo *repository.Repository) {
+	answers, error := repo.GetAnswers(id)
+	if error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
+		return
+	}
+	c.JSON(200, answers)
 }
