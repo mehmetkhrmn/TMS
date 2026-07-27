@@ -14,7 +14,6 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	router := gin.Default()
 	gin.SetMode(gin.DebugMode)
-	router.LoadHTMLGlob("internal/templates/*")
 	repo := repository.NewRepository(db)
 
 	//tickets
@@ -133,20 +132,88 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 	//oluşturmak için
 	router.POST("/tickets", func(context *gin.Context) {
-		createTicket(context, repo)
+		var ticket models.Ticket
+		if err := context.ShouldBind(&ticket); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		createTicket(&ticket, context, repo)
 	})
+	router.GET("/customers", func(context *gin.Context) {
+		getCustomers(context, repo)
+	})
+	router.POST("/customers", func(context *gin.Context) {
+		var customer models.Customer
+		if err := context.ShouldBind(&customer); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		createCustomer(&customer, context, repo)
+	})
+	router.GET("/customers/:customer_id", func(context *gin.Context) {
+		idString := (context.Param("custoemr_id"))
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "id"})
+			return
+		}
+		getCustomer(id, context, repo)
 
+	})
+	router.PUT("/customers/:customers_id", func(context *gin.Context) {
+		idString := (context.Param("customers_id"))
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "id"})
+			return
+		}
+		var customer models.Customer
+		if err := context.ShouldBind(&customer); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		updateCustomer(id, &customer, context, repo)
+	})
+	router.GET("/representatives", func(context *gin.Context) {
+		getAllRepresentatives(context, repo)
+	})
+	router.POST("/representatives", func(context *gin.Context) {
+		var rep models.Representative
+		if err := context.ShouldBind(&rep); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		createRepresentative(&rep, context, repo)
+	})
+	router.PUT("/representatives/:representatives_id", func(context *gin.Context) {
+		idString := (context.Param("representatives_id"))
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "id"})
+			return
+		}
+		var rep models.Representative
+		if err := context.ShouldBind(&rep); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "bind"})
+			return
+		}
+		updateRepresentative(id, &rep, context, repo)
+	})
+	router.GET("/representatives/:representatives_id", func(context *gin.Context) {
+		idString := (context.Param("representatives_id"))
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{"error": "id"})
+			return
+		}
+		getRepresentative(id, context, repo)
+	})
 	return router
 }
-func createTicket(c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
-	var ticket models.Ticket
-	//gelen json datasını tickete göre formatladık
-	if err := c.BindJSON(&ticket); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+func createTicket(ticket *models.Ticket, c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
+
 	//database ekliyoruz
-	if err := repo.CreateTicket(&ticket); err != nil {
+	if err := repo.CreateTicket(ticket); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 	c.JSON(201, ticket) //burada da create ticket fonksyonu içide yazdığımız returning ile güncellenmiş json var
@@ -235,4 +302,69 @@ func getAnswers(id int, c *gin.Context, repo *repository.Repository) {
 		return
 	}
 	c.JSON(200, answers)
+}
+func createCustomer(customer *models.Customer, c *gin.Context, repo *repository.Repository) {
+	err := repo.CreateCustomer(customer)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(201, customer)
+
+}
+func getCustomers(c *gin.Context, repo *repository.Repository) {
+	customers, error := repo.GetCustomers()
+	if error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
+		return
+	}
+	c.JSON(200, customers)
+}
+func getCustomer(id int, c *gin.Context, repo *repository.Repository) {
+	customer, error := repo.GetCustomer(id)
+	if error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
+		return
+	}
+	c.JSON(200, customer)
+}
+func updateCustomer(id int, customer *models.Customer, c *gin.Context, repo *repository.Repository) {
+	_, err := repo.UpdateCustomer(id, customer)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(201, "updated")
+}
+func createRepresentative(representative *models.Representative, c *gin.Context, repo *repository.Repository) {
+	err := repo.CreateRepresentative(representative)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(201, representative)
+
+}
+func getRepresentative(id int, c *gin.Context, repo *repository.Repository) {
+	representative, error := repo.GetRepresentative(id)
+	if error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
+		return
+	}
+	c.JSON(200, representative)
+}
+func getAllRepresentatives(c *gin.Context, repo *repository.Repository) {
+	representatives, err := repo.GetAllRepresentatives()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, representatives)
+}
+func updateRepresentative(id int, representative *models.Representative, c *gin.Context, repo *repository.Repository) {
+	err := repo.UpdateRepresentative(id, representative)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo"})
+		return
+	}
+	c.JSON(201, "updated")
 }

@@ -217,3 +217,98 @@ func (r *Repository) GetAnswers(ticketId int) ([]models.Answer, error) {
 	return answers, nil
 
 }
+func (r *Repository) CreateCustomer(customer *models.Customer) error {
+	query := "INSERT INTO customers(name,email) values($1,$2)RETURNING id,created_at"
+	err := r.db.QueryRow(query, customer.Name, customer.Email).Scan(&customer.ID, &customer.CreatedAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (r *Repository) GetCustomer(id int) (*models.Customer, error) {
+	var customer models.Customer
+	query := "SELECT id,name,email FROM customers WHERE id=$1"
+	row, err := r.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+	row.Next()
+	row.Scan(
+		&customer.ID,
+		&customer.Name,
+		&customer.Email)
+	return &customer, nil
+}
+func (r *Repository) GetCustomers() ([]models.Customer, error) {
+	var customers []models.Customer
+	query := "SELECT id,name,email FROM customers"
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var customer models.Customer
+		rows.Scan(&customer.ID,
+			&customer.Name,
+			&customer.Email)
+		customers = append(customers, customer)
+	}
+	return customers, nil
+}
+func (r *Repository) CreateRepresentative(rep *models.Representative) error {
+	query := "INSERT INTO representatives(name) values($1) RETURNING id, created_at"
+	err := r.db.QueryRow(query, rep.Name).Scan(&rep.ID, &rep.CreatedAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (r *Repository) GetAllRepresentatives() ([]models.Representative, error) {
+	var representatives []models.Representative
+	query := "SELECT id,name FROM representatives"
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var representative models.Representative
+		rows.Scan(&representative.ID,
+			&representative.Name)
+		representatives = append(representatives, representative)
+	}
+	return representatives, nil
+}
+func (r *Repository) GetRepresentative(id int) (*models.Representative, error) {
+	var representative models.Representative
+	query := "SELECT id,name FROM representatives where id=$1"
+	rows, err := r.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&representative.ID,
+		&representative.Name)
+
+	return &representative, nil
+}
+func (r *Repository) UpdateRepresentative(id int, representative *models.Representative) error {
+	query := "UPDATE representatives SET name=$1 ,updated_at=NOW() WHERE id=$2"
+	_, err := r.db.Exec(query, representative.Name, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Repository) UpdateCustomer(id int, customer *models.Customer) (*models.Customer, error) {
+	query := "UPDATE customers SET name=COALESCE(NULLIF($1, ''),name) ,email=COALESCE(NULLIF($2, ''),email),updated_at=NOW() WHERE id=$3"
+	_, err := r.db.Exec(query, customer.Name, customer.Email, id)
+	if err != nil {
+		return nil, err
+	}
+	return customer, nil
+}

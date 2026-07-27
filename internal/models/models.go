@@ -17,6 +17,7 @@ type Representative struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Answer struct {
@@ -31,4 +32,6 @@ type Customer struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+	Email     string    `json:"email"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
