@@ -341,7 +341,7 @@ in bash
 ```
 psql -U postgres
 ```
-and create by using commands.
+login and create by using command above.
 ### 4. Import the database schema
 
 Import the schema located in the `database` directory.
@@ -349,7 +349,7 @@ Import the schema located in the `database` directory.
 Using `psql`:
 
 ```bash
-psql -U postgres -d tms -f database/schema.sql
+psql -U postgres -d tms -f internal/database/schema.sql
 ```
 
 Or, if you are using GoLand:
@@ -358,21 +358,22 @@ Or, if you are using GoLand:
 2. Connect to your PostgreSQL server.
 3. Right-click the **tms** database.
 4. Select **Run SQL Script...**
-5. Choose `database/schema.sql`.
+5. Choose `internal/database/schema.sql`.
 6. Execute the script.
 
 ### 5. Configure the database connection
 
-Update the PostgreSQL connection settings in the source code if necessary.
+Create and update the PostgreSQL connection settings in the .env file if needed.
 
 Example:
 
 ```text
-Host: localhost
-Port: 5432
-Database: tms
-Username: postgres
-Password: your_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres (or your username)
+DB_PASSWORD=your_password
+DB_NAME=tms
+DB_SSLMODE=disable
 ```
 
 ### 6. Run the application
