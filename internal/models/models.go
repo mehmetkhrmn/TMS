@@ -35,3 +35,31 @@ type Customer struct {
 	Email     string    `json:"email"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+type AuthUser struct {
+	ID           int       `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"passwordHash"`
+	Role         string    `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	EntityId     int       `json:"entity_id"`
+}
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+type RegisterRequestRepresentative struct {
+	Name     string `json:"name"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" `
+	EntityID int    `json:"entity_id" `
+}
+type RegisterRequestCustomer struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" `
+	EntityID int    `json:"entity_id"`
+}
