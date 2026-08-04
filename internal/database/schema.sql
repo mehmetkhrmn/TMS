@@ -1,58 +1,96 @@
-CREATE TABLE representatives (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+create table representatives
+(
+    id         serial
+        primary key,
+    name       varchar(255) not null,
+    created_at timestamp default CURRENT_TIMESTAMP,
+    updated_at timestamp default CURRENT_TIMESTAMP
 );
 
-CREATE TABLE customers (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_customers_id_email UNIQUE (id, email)
+alter table representatives
+    owner to postgres;
+
+create table customers
+(
+    id         serial
+        primary key,
+    name       varchar(255) not null,
+    created_at timestamp default CURRENT_TIMESTAMP,
+    email      varchar(255) not null
+        unique,
+    updated_at timestamp default CURRENT_TIMESTAMP,
+    constraint uk_customers_id_email
+        unique (id, email)
 );
 
-CREATE TABLE tickets (
-    id SERIAL PRIMARY KEY,
-    subject VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    customer_id INTEGER NOT NULL,
-    customer_email VARCHAR(255) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT 'open',
+alter table customers
+    owner to postgres;
 
-    CONSTRAINT check_ticket_status
-    CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
-
-    CONSTRAINT fk_customer
-    FOREIGN KEY (customer_id)
-    REFERENCES customers(id)
-    ON DELETE CASCADE,
-
-    CONSTRAINT fk_ticket_customer_email
-    FOREIGN KEY (customer_id, customer_email)
-    REFERENCES customers(id, email)
-    ON DELETE CASCADE
+create table tickets
+(
+    id             serial
+        primary key,
+    subject        varchar(255)                                               not null,
+    description    text                                                       not null,
+    customer_id    integer                                                    not null
+        constraint fk_customer
+            references customers
+            on delete cascade,
+    created_at     timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at     timestamp with time zone default CURRENT_TIMESTAMP,
+    customer_email varchar(255)                                               not null,
+    status         varchar(50)              default 'open'::character varying not null
+        constraint check_ticket_status
+            check ((status)::text = ANY
+                   ((ARRAY ['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[])),
+    constraint fk_ticket_customer_email
+        foreign key (customer_id, customer_email) references customers (id, email)
+            on delete cascade
 );
 
-CREATE TABLE answers (
-    id SERIAL PRIMARY KEY,
-    answer TEXT NOT NULL,
-    representative_id INTEGER NOT NULL,
-    ticket_id INTEGER NOT NULL,
-    answered_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+alter table tickets
+    owner to postgres;
 
-    CONSTRAINT fk_answer_representative
-    FOREIGN KEY (representative_id)
-    REFERENCES representatives(id)
-    ON DELETE CASCADE,
-
-    CONSTRAINT fk_ticket
-    FOREIGN KEY (ticket_id)
-    REFERENCES tickets(id)
-    ON DELETE CASCADE
+create table answers
+(
+    id                serial
+        primary key,
+    answer            text    not null,
+    representative_id integer not null
+        constraint answers_agent_id_fkey
+            references representatives
+        constraint fk_representative
+            references representatives
+        constraint fk_answer_representative
+            references representatives
+            on delete cascade,
+    ticket_id         integer not null
+        references tickets
+        constraint fk_ticket
+            references tickets,
+    answered_at       timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at        timestamp                default CURRENT_TIMESTAMP
 );
+
+alter table answers
+    owner to postgres;
+
+create table auth_users
+(
+    id            serial
+        primary key,
+    username      varchar(50)                         not null
+        unique,
+    password_hash text                                not null,
+    role          varchar(20)                         not null
+        constraint auth_users_role_check
+            check ((role)::text = ANY
+        ((ARRAY ['admin'::character varying, 'representative'::character varying, 'customer'::character varying])::text[])),
+    created_at    timestamp default CURRENT_TIMESTAMP not null,
+    updated_at    timestamp default CURRENT_TIMESTAMP not null,
+    entity_id     integer
+);
+
+alter table auth_users
+    owner to postgres;
+
