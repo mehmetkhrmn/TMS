@@ -310,8 +310,8 @@ func (r *Repository) UpdateCustomer(id int, customer *models.Customer) (*models.
 }
 func (r *Repository) GetAuthUserByUsername(username string) (*models.AuthUser, error) {
 	var authUser models.AuthUser
-	query := "SELECT id,username,password_hash FROM auth_users WHERE username=$1"
-	err := r.Db.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash)
+	query := "SELECT id,username,password_hash,role,entity_id FROM auth_users WHERE username=$1"
+	err := r.Db.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
