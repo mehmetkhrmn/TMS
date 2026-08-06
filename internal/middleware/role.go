@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AdminAuthMiddleware() gin.HandlerFunc {
+func AdminAuthMiddleware() gin.HandlerFunc { //bunlar normal authmiddleware çalıştıktan sonra kullanılıyo esktra kontrol gibi c.Use() ile kullanılıyoruz
 	return func(c *gin.Context) {
 		role := c.GetString("role")
 		if role != "admin" {
@@ -19,7 +19,7 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
-func RepresentationMiddleware() gin.HandlerFunc {
+func RepresentativeMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := c.GetString("role")
 		if role != "representation" {

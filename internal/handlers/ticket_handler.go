@@ -4,14 +4,26 @@ import (
 	"TMS/internal/models"
 	"TMS/internal/repository"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateTicket(ticket *models.Ticket, c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
-
+func CreateTicket(c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
+	var req models.CreateTicketRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind ticket" + err.Error()})
+		return
+	}
+	custId := int(c.GetFloat64("entity_id"))
+	ticket := models.Ticket{
+		Subject:     req.Subject,
+		Description: req.Description,
+		CustomerID:  custId,
+		Status:      "open",
+	}
 	//database ekliyoruz
-	if err := repo.CreateTicket(ticket); err != nil {
+	if err := repo.CreateTicket(&ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant create ticket" + err.Error()})
 	}
 	c.JSON(http.StatusCreated, ticket) //burada da create ticket fonksyonu içide yazdığımız returning ile güncellenmiş json var
@@ -27,8 +39,8 @@ func GetAllTickets(c *gin.Context, repo *repository.Repository) {
 	c.JSON(http.StatusOK, tickets)
 }
 
-func GetTicketWith(status string, c *gin.Context, repo *repository.Repository) {
-
+func GetTicketWith(c *gin.Context, repo *repository.Repository) {
+	status := c.Query("ticket_status")
 	tickets, error := repo.GetAllWithStatus(status)
 	if error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
@@ -38,7 +50,13 @@ func GetTicketWith(status string, c *gin.Context, repo *repository.Repository) {
 
 }
 
-func GetTicket(id int, c *gin.Context, repo *repository.Repository) {
+func GetTicket(c *gin.Context, repo *repository.Repository) {
+	idString := (c.Param("ticket_id")) //url den id yi aldık
+	id, err := strconv.Atoi(idString)  //int ye çevir
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		return
+	}
 	ticket, error := repo.GetTicket(id)
 
 	if error != nil {
@@ -52,8 +70,17 @@ func GetTicket(id int, c *gin.Context, repo *repository.Repository) {
 	c.JSON(http.StatusOK, ticket)
 }
 
-func SetTicketStatus(id int, status string, c *gin.Context, repo *repository.Repository) {
-	err := repo.SetStatus(id, status)
+func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
+	idString := c.Param("ticket_id")
+	statusString := c.Query("status") //gin iki tane parametre almıyo o yüzden query den alıyoz
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		return
+	}
+	status := statusString
+
+	err = repo.SetStatus(id, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -61,11 +88,46 @@ func SetTicketStatus(id int, status string, c *gin.Context, repo *repository.Rep
 	c.JSON(200, gin.H{"id": id, "status": status})
 }
 
-func UpdateTicket(id int, ticket *models.Ticket, c *gin.Context, repo *repository.Repository) {
-
-	err := repo.UpdateTicket(id, ticket)
+func UpdateTicket(c *gin.Context, repo *repository.Repository) {
+	id, err := strconv.Atoi(c.Param("ticket_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		return
+	}
+	var ticket models.Ticket
+	if err := c.ShouldBindJSON(&ticket); err != nil { //burada bindliyoruz biz gönderilmeyen veriler boş kalcak bu sayede
+		c.JSON(http.StatusBadRequest, gin.H{"error": "can't bind ticket" + err.Error()})
+		return
+	}
+	err = repo.UpdateTicket(id, &ticket)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 	}
 	c.JSON(200, ticket)
+}
+func GetAdminTickets(ticket_id int, c *gin.Context, repo *repository.Repository) {
+	tickets, err := repo.GetAdminTicket(ticket_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+	c.JSON(http.StatusOK, tickets)
+}
+
+func GetRepresentativeTickets(customer_id int, representative_id int, c *gin.Context, repo *repository.Repository) {
+	tickets, err := repo.GetRepresentativeTickets(customer_id, representative_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tickets)
+}
+func GetCustomerTicket(ticket_id int, customer_id int, c *gin.Context, repo *repository.Repository) {
+	ticket, err := repo.GetCustomerTicket(ticket_id, customer_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+	c.JSON(http.StatusOK, ticket)
 }

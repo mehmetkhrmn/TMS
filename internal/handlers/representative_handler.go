@@ -4,6 +4,7 @@ import (
 	"TMS/internal/models"
 	"TMS/internal/repository"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +28,13 @@ func CreateRepresentativeTx(representative *models.Representative, c *gin.Contex
 
 }
 
-func GetRepresentative(id int, c *gin.Context, repo *repository.Repository) {
+func GetRepresentative(c *gin.Context, repo *repository.Repository) {
+	idString := (c.Param("representatives_id"))
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id is invalid" + err.Error()})
+		return
+	}
 	representative, error := repo.GetRepresentative(id)
 	if error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
@@ -43,8 +50,19 @@ func GetAllRepresentatives(c *gin.Context, repo *repository.Repository) {
 	}
 	c.JSON(200, representatives)
 }
-func UpdateRepresentative(id int, representative *models.Representative, c *gin.Context, repo *repository.Repository) {
-	err := repo.UpdateRepresentative(id, representative)
+func UpdateRepresentative(c *gin.Context, repo *repository.Repository) {
+	idString := (c.Param("representatives_id"))
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id is invalid" + err.Error()})
+		return
+	}
+	var rep models.Representative
+	if err := c.ShouldBind(&rep); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind representatives" + err.Error()})
+		return
+	}
+	err = repo.UpdateRepresentative(id, &rep)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

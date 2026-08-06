@@ -4,6 +4,7 @@ import (
 	"TMS/internal/models"
 	"TMS/internal/repository"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +33,13 @@ func GetCustomers(c *gin.Context, repo *repository.Repository) {
 	}
 	c.JSON(200, customers)
 }
-func GetCustomer(id int, c *gin.Context, repo *repository.Repository) {
+func GetCustomer(c *gin.Context, repo *repository.Repository) {
+	idString := (c.Param("customer_id"))
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is invalid" + err.Error()})
+		return
+	}
 	customer, error := repo.GetCustomer(id)
 	if error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
@@ -40,8 +47,19 @@ func GetCustomer(id int, c *gin.Context, repo *repository.Repository) {
 	}
 	c.JSON(200, customer)
 }
-func UpdateCustomer(id int, customer *models.Customer, c *gin.Context, repo *repository.Repository) {
-	_, err := repo.UpdateCustomer(id, customer)
+func UpdateCustomer(c *gin.Context, repo *repository.Repository) {
+	idString := (c.Param("customers_id"))
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is invalid" + err.Error()})
+		return
+	}
+	var customer models.Customer
+	if err := c.ShouldBind(&customer); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind customer " + err.Error()})
+		return
+	}
+	_, err = repo.UpdateCustomer(id, &customer)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
