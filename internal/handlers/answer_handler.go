@@ -36,7 +36,6 @@ func CreateAnswer(c *gin.Context, repo *repository.Repository) {
 }
 func GetAnswer(c *gin.Context, repo *repository.Repository) {
 	tid, err := strconv.Atoi(c.Param("ticket_id"))
-
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
 		return
@@ -46,7 +45,32 @@ func GetAnswer(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "answer_id is invalid" + err.Error()})
 		return
 	}
-	answer, error := repo.GetAnswer(tid, aid)
+
+	role := c.GetString("role")
+	if role == "customer" {
+		custId := int(c.GetFloat64("entity_id"))
+		ok, err := repo.IsTicketOwner(tid, custId)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
+			return
+		}
+	}
+
+	ok, err := repo.IsAnswerBelongsToTicket(aid, tid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden answer"})
+		return
+	}
+	answer, error := repo.GetAnswer(aid)
 	if error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
 		return
@@ -65,13 +89,18 @@ func UpdateAnswer(c *gin.Context, repo *repository.Repository) {
 		return
 	}
 	repID := int(c.GetFloat64("entity_id"))
-	ok, err := repo.IsAnswerOwner(id, repID)
+	ok, err := repo.IsAnswerMatchWithRep(id, repID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if !ok {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+	oldValue, err := repo.GetAnswer(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -87,11 +116,22 @@ func UpdateAnswer(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	err = repo.CreateActivityLog(id, repID, models.ActionAnswerUpdated, "description", oldValue.AnswerText, req.AnswerText)
 	c.JSON(http.StatusOK, answer)
 
 }
 func GetAnswers(c *gin.Context, repo *repository.Repository) {
 	id, err := strconv.Atoi(c.Param("ticket_id"))
+	custId := int(c.GetFloat64("entity_id"))
+	ok, err := repo.IsTicketOwner(id, custId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized ticket"})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
 		return

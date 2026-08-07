@@ -28,24 +28,20 @@ alter table customers
 
 create table tickets
 (
-    id             serial
+    id          serial
         primary key,
-    subject        varchar(255)                                               not null,
-    description    text                                                       not null,
-    customer_id    integer                                                    not null
+    subject     varchar(255)                                               not null,
+    description text                                                       not null,
+    customer_id integer                                                    not null
         constraint fk_customer
             references customers
             on delete cascade,
-    created_at     timestamp with time zone default CURRENT_TIMESTAMP,
-    updated_at     timestamp with time zone default CURRENT_TIMESTAMP,
-    customer_email varchar(255)                                               not null,
-    status         varchar(50)              default 'open'::character varying not null
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    status      varchar(50)              default 'open'::character varying not null
         constraint check_ticket_status
             check ((status)::text = ANY
-                   ((ARRAY ['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[])),
-    constraint fk_ticket_customer_email
-        foreign key (customer_id, customer_email) references customers (id, email)
-            on delete cascade
+                   ((ARRAY ['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[]))
 );
 
 alter table tickets
@@ -92,5 +88,25 @@ create table auth_users
 );
 
 alter table auth_users
+    owner to postgres;
+
+create table activity_logs
+(
+    id         serial
+        primary key,
+    ticket_id  integer                             not null
+        references tickets
+            on delete cascade,
+    user_id    integer
+        constraint fk_activity_user
+            references auth_users,
+    action     varchar(50)                         not null,
+    field_name varchar(50),
+    old_value  text,
+    new_value  text,
+    created_at timestamp default CURRENT_TIMESTAMP not null
+);
+
+alter table activity_logs
     owner to postgres;
 

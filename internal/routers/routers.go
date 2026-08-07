@@ -29,11 +29,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		handlers.Login(context, repo)
 	})
 
-	authorized.PUT("/answers/:answer_id", func(context *gin.Context) {
+	representative.PUT("/answers/:answer_id", func(context *gin.Context) {
 		handlers.UpdateAnswer(context, repo)
 	})
 
-	authorized.POST("/tickets/:ticket_id/answers", func(context *gin.Context) {
+	representative.POST("/tickets/:ticket_id/answers", func(context *gin.Context) {
 		handlers.CreateAnswer(context, repo)
 	})
 
@@ -45,7 +45,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		handlers.GetAnswer(context, repo)
 	})
 
-	authorized.PUT("/tickets/:ticket_id", func(c *gin.Context) {
+	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
 		handlers.UpdateTicket(c, repo)
 	})
 

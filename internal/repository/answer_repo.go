@@ -23,10 +23,10 @@ func (r *Repository) UpdateAnswer(id int, answer *models.Answer) error {
 	return nil
 }
 
-func (r *Repository) GetAnswer(ticketID int, answerId int) (*models.Answer, error) {
+func (r *Repository) GetAnswer(answerId int) (*models.Answer, error) {
 	var answer models.Answer
-	query := `SELECT id,answer,representative_id,ticket_id,answered_at,updated_at FROM answers WHERE id=$1 and ticket_id=$2`
-	row, err := r.Db.Query(query, answerId, ticketID)
+	query := `SELECT id,answer,representative_id,ticket_id,answered_at,updated_at FROM answers WHERE id=$1`
+	row, err := r.Db.Query(query, answerId)
 	defer row.Close()
 	if err != nil {
 		return nil, err
@@ -73,14 +73,22 @@ func (r *Repository) GetAnswers(ticketId int) ([]models.Answer, error) {
 	return answers, nil
 
 }
-func (r *Repository) IsAnswerOwner(answerID, representativeID int) (bool, error) {
+func (r *Repository) IsAnswerMatchWithRep(answerID, representativeID int) (bool, error) {
 	query := "SELECT EXISTS (SELECT 1  FROM answers    WHERE id = $1     AND representative_id = $2);"
-	err := r.Db.QueryRow(query, answerID, representativeID).Scan()
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
+	var exists bool
+	err := r.Db.QueryRow(query, answerID, representativeID).Scan(&exists)
+
 	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return exists, nil
+}
+func (r *Repository) IsAnswerBelongsToTicket(answerID int, ticketID int) (bool, error) {
+	query := "SELECT EXISTS (SELECT 1  FROM answers    WHERE id = $1     AND ticket_id = $2)"
+	var exists bool
+	err := r.Db.QueryRow(query, answerID, ticketID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }

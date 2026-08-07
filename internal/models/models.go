@@ -65,3 +65,11 @@ type CreateTicketRequest struct {
 type CreateAnswerRequest struct {
 	AnswerText string `json:"answer" binding:"required"`
 }
+
+const (
+	ActionTicketCreated = "ticket_created"
+	ActionTicketUpdated = "ticket_updated"
+	ActionStatusChanged = "status_changed"
+	ActionAnswerCreated = "answer_created"
+	ActionAnswerUpdated = "answer_updated"
+)

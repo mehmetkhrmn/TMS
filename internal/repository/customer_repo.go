@@ -64,3 +64,13 @@ func (r *Repository) UpdateCustomer(id int, customer *models.Customer) (*models.
 	}
 	return customer, nil
 }
+func (r *Repository) GetCustomerEmail(customerID int) (string, error) {
+	query := "SELECT email FROM customers WHERE id=$1"
+	row := r.Db.QueryRow(query, customerID)
+	var email string
+	err := row.Scan(&email)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return email, err
+}

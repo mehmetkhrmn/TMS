@@ -57,16 +57,31 @@ func GetTicket(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
 		return
 	}
-	ticket, error := repo.GetTicket(id)
+	role := c.GetString("role")
+	if role == "customer" {
 
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+		custId := int(c.GetFloat64("entity_id"))
+		ok, err := repo.IsTicketOwner(id, custId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
+			return
+		}
+
+	}
+	ticket, err := repo.GetTicket(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if ticket == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, ticket)
 }
 
@@ -94,6 +109,12 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
 		return
 	}
+	repID := int(c.GetFloat64("entity_id"))
+	oldTicket, error := repo.GetTicket(id)
+	if error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+		return
+	}
 	var ticket models.Ticket
 	if err := c.ShouldBindJSON(&ticket); err != nil { //burada bindliyoruz biz gönderilmeyen veriler boş kalcak bu sayede
 		c.JSON(http.StatusBadRequest, gin.H{"error": "can't bind ticket" + err.Error()})
@@ -103,8 +124,14 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 	}
+	err = repo.CreateActivityLog(id, repID, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
 	c.JSON(200, ticket)
 }
+
 func GetAdminTickets(ticket_id int, c *gin.Context, repo *repository.Repository) {
 	tickets, err := repo.GetAdminTicket(ticket_id)
 	if err != nil {
@@ -123,6 +150,7 @@ func GetRepresentativeTickets(customer_id int, representative_id int, c *gin.Con
 
 	c.JSON(http.StatusOK, tickets)
 }
+
 func GetCustomerTicket(ticket_id int, customer_id int, c *gin.Context, repo *repository.Repository) {
 	ticket, err := repo.GetCustomerTicket(ticket_id, customer_id)
 	if err != nil {
