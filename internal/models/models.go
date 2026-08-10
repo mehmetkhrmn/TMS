@@ -65,6 +65,21 @@ type CreateTicketRequest struct {
 type CreateAnswerRequest struct {
 	AnswerText string `json:"answer" binding:"required"`
 }
+type ActivityLog struct {
+	ID        int       `json:"id"`
+	TicketID  int       `json:"ticket_id"`
+	UserID    int       `json:"user_id"`
+	Action    string    `json:"action"`
+	FieldName string    `json:"field_name"`
+	OldValue  *string   `json:"old_value"`
+	NewValue  *string   `json:"new_value"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type AssignTicketRequest struct {
+	TicketID int `json:"ticket_id" binding:"required"`
+	RepID    int `json:"rep_id" binding:"required"`
+}
 
 const (
 	ActionTicketCreated = "ticket_created"

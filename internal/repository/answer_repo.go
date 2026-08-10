@@ -92,3 +92,12 @@ func (r *Repository) IsAnswerBelongsToTicket(answerID int, ticketID int) (bool, 
 	}
 	return exists, nil
 }
+func (r *Repository) GetTicketIDByAnswerID(answerID int) (int, error) {
+	ticketID := 0
+	query := "SELECT id FROM tickets WHERE answer_id=$1"
+	err := r.Db.QueryRow(query, answerID).Scan(&ticketID)
+	if err != nil {
+		return 0, err
+	}
+	return ticketID, nil
+}

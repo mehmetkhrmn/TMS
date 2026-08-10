@@ -28,7 +28,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	router.POST("/login", func(context *gin.Context) {
 		handlers.Login(context, repo)
 	})
-
+	admin.POST("/tickets/:ticket_id/representatives/:representative_id",
+		func(c *gin.Context) {
+			handlers.AssignRepresentative(c, repo)
+		},
+	)
 	representative.PUT("/answers/:answer_id", func(context *gin.Context) {
 		handlers.UpdateAnswer(context, repo)
 	})
@@ -40,7 +44,9 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	authorized.GET("/tickets/:ticket_id/answers", func(context *gin.Context) {
 		handlers.GetAnswers(context, repo)
 	})
-
+	authorized.GET("/tickets/:ticket_id/history", func(context *gin.Context) {
+		handlers.GetTicketHistory(context, repo)
+	})
 	authorized.GET("/tickets/:ticket_id/answers/:answer_id", func(context *gin.Context) {
 		handlers.GetAnswer(context, repo)
 	})
@@ -60,7 +66,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 
 	//set status
-	authorized.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
+	representative.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
 		handlers.SetTicketStatus(context, repo)
 	})
 

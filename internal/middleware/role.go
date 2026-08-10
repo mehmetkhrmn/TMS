@@ -22,7 +22,7 @@ func AdminAuthMiddleware() gin.HandlerFunc { //bunlar normal authmiddleware çal
 func RepresentativeMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := c.GetString("role")
-		if role != "representation" {
+		if role != "representative" {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": "forbidden",
 			})

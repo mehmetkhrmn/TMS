@@ -26,3 +26,21 @@ func (r *Repository) CreateAuthUser(tx *sql.Tx, user *models.AuthUser) error {
 	}
 	return nil
 }
+func (r *Repository) GetAuthUser(id int) (*models.AuthUser, error) {
+	var user models.AuthUser
+	query := "SELECT * FROM auth_users WHERE id=$1"
+	err := r.Db.QueryRow(query, id).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Role,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

@@ -49,6 +49,62 @@ func GetTicketWith(c *gin.Context, repo *repository.Repository) {
 	c.JSON(http.StatusOK, tickets)
 
 }
+func GetTicketHistory(c *gin.Context, repo *repository.Repository) {
+	ticketID, err := strconv.Atoi(c.Param("ticket_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket is invalid" + err.Error()})
+		return
+	}
+	role := c.GetString("role")
+	switch role {
+	case "customer":
+		custId := int(c.GetFloat64("entity_id"))
+		ok, err := repo.IsTicketOwner(ticketID, custId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "ticket is not owner"})
+			return
+		}
+		answers, err := repo.GetTicketHistory(ticketID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, answers)
+
+	case "representative":
+		representativeID := int(c.GetFloat64("entity_id"))
+		ok, err := repo.IsRepresentativeAssignedAnswer(ticketID, representativeID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "representative is not assigned answer"})
+			return
+		}
+		answers, err := repo.GetTicketHistory(ticketID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, answers)
+	case "admin":
+		answers, err := repo.GetTicketHistory(ticketID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, answers)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket is invalid"})
+		return
+	}
+
+}
 
 func GetTicket(c *gin.Context, repo *repository.Repository) {
 	idString := (c.Param("ticket_id")) //url den id yi aldık
@@ -94,6 +150,16 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
 		return
 	}
 	status := statusString
+	repId := int(c.GetFloat64("entity_id"))
+	ok, err := repo.IsRepresentativeAssigned(id, repId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
+		return
+	}
 
 	err = repo.SetStatus(id, status)
 	if err != nil {
@@ -110,6 +176,15 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository) {
 		return
 	}
 	repID := int(c.GetFloat64("entity_id"))
+	ok, err := repo.IsRepresentativeAssigned(id, repID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
+		return
+	}
 	oldTicket, error := repo.GetTicket(id)
 	if error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
@@ -158,4 +233,23 @@ func GetCustomerTicket(ticket_id int, customer_id int, c *gin.Context, repo *rep
 		return
 	}
 	c.JSON(http.StatusOK, ticket)
+}
+func AssignRepresentative(c *gin.Context, repo *repository.Repository) {
+	repID, err := strconv.Atoi(c.Param("representative_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "representative id is invalid" + err.Error()})
+		return
+	}
+	ticketID, err := strconv.Atoi(c.Param("ticket_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		return
+	}
+
+	err = repo.AssignRepresentative(ticketID, repID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+	c.JSON(200, gin.H{"assigned": true})
 }

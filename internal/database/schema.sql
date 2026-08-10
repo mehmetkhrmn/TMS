@@ -110,3 +110,20 @@ create table activity_logs
 alter table activity_logs
     owner to postgres;
 
+create table ticket_assignments
+(
+    id                serial
+        primary key,
+    ticket_id         integer not null
+        references tickets
+            on delete cascade,
+    representative_id integer not null
+        references representatives
+            on delete cascade,
+    assigned_at       timestamp with time zone default CURRENT_TIMESTAMP,
+    unique (ticket_id, representative_id)
+);
+
+alter table ticket_assignments
+    owner to postgres;
+

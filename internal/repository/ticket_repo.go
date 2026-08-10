@@ -187,3 +187,55 @@ func (r *Repository) IsTicketOwner(ticketId int, custId int) (bool, error) {
 	}
 	return exists, nil
 }
+func (r *Repository) IsRepresentativeAssignedAnswer(ticketId int, representativeId int) (bool, error) {
+	query := "SELECT EXISTS (SELECT 1 FROM answers WHERE ticket_id = $1 AND representative_id = $2)"
+	var exists bool
+	err := r.Db.QueryRow(query, ticketId, representativeId).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+func (r *Repository) GetTicketHistory(ticketId int) ([]models.ActivityLog, error) {
+	query := "SELECT id,ticket_id,user_id,action,field_name,old_value,new_value,created_at FROM activity_logs WHERE ticket_id=$1"
+	rows, err := r.Db.Query(query, ticketId)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	var logs []models.ActivityLog
+	for rows.Next() {
+		var log models.ActivityLog
+		if err := rows.Scan(&log.ID,
+			&log.TicketID,
+			&log.UserID,
+			&log.Action,
+			&log.FieldName,
+			&log.OldValue,
+			&log.NewValue,
+			&log.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		logs = append(logs, log)
+	}
+	return logs, nil
+}
+
+func (r *Repository) IsRepresentativeAssigned(ticketId int, representativeId int) (bool, error) {
+	query := "SELECT EXISTS (    SELECT 1   FROM ticket_assignments   WHERE ticket_id = $1      AND representative_id = $2);"
+	var exists bool
+	err := r.Db.QueryRow(query, ticketId, representativeId).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+func (r *Repository) AssignRepresentative(ticketId int, representativeId int) error {
+	query := "INSERT INTO ticket_assignments(ticket_id,representative_id) VALUES ($1,$2);"
+	_, err := r.Db.Exec(query, ticketId, representativeId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
