@@ -9,7 +9,7 @@ func (r *Repository) CreateActivityLog(
 	newValue string,
 ) error {
 
-	query := "INSERT INTO activity_logs(ticket_id, rep_id, action, field_name, old_value, new_value)VALUES ($1, $2, $3, $4, $5, $6)"
+	query := "INSERT INTO activity_logs(ticket_id, user_id, action, field_name, old_value, new_value)VALUES ($1, $2, $3, $4, $5, $6)"
 
 	_, err := r.Db.Exec(
 		query,

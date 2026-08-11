@@ -30,45 +30,25 @@ create table tickets
 (
     id          serial
         primary key,
-    subject     varchar(255)                                               not null,
-    description text                                                       not null,
-    customer_id integer                                                    not null
+    subject     varchar(255)                                                not null,
+    description text                                                        not null,
+    customer_id integer                                                     not null
         constraint fk_customer
             references customers
             on delete cascade,
     created_at  timestamp with time zone default CURRENT_TIMESTAMP,
     updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
-    status      varchar(50)              default 'open'::character varying not null
+    status      varchar(50)              default 'open'::character varying  not null
         constraint check_ticket_status
             check ((status)::text = ANY
-                   ((ARRAY ['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[]))
+                   ((ARRAY ['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[])),
+    category    varchar(50)              default 'other'::character varying not null
+        constraint check_ticket_category
+            check ((category)::text = ANY
+                   ((ARRAY ['technical'::character varying, 'billing'::character varying, 'account'::character varying, 'bug'::character varying, 'other'::character varying])::text[]))
 );
 
 alter table tickets
-    owner to postgres;
-
-create table answers
-(
-    id                serial
-        primary key,
-    answer            text    not null,
-    representative_id integer not null
-        constraint answers_agent_id_fkey
-            references representatives
-        constraint fk_representative
-            references representatives
-        constraint fk_answer_representative
-            references representatives
-            on delete cascade,
-    ticket_id         integer not null
-        references tickets
-        constraint fk_ticket
-            references tickets,
-    answered_at       timestamp with time zone default CURRENT_TIMESTAMP,
-    updated_at        timestamp                default CURRENT_TIMESTAMP
-);
-
-alter table answers
     owner to postgres;
 
 create table auth_users
@@ -125,5 +105,26 @@ create table ticket_assignments
 );
 
 alter table ticket_assignments
+    owner to postgres;
+
+create table ticket_messages
+(
+    id         serial
+        primary key,
+    ticket_id  integer not null
+        references tickets
+            on delete cascade,
+    user_id    integer not null
+        references auth_users
+            on delete cascade
+        constraint fk_ticket_messages_user
+            references auth_users
+            on delete cascade,
+    message    text    not null,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP
+);
+
+alter table ticket_messages
     owner to postgres;
 

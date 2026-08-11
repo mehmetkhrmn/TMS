@@ -11,6 +11,7 @@ type Ticket struct {
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	Status        string    `json:"status"`
+	Category      string    `json:"category" binding:"required"`
 }
 type Representative struct {
 	ID        int       `json:"id"`
@@ -18,14 +19,19 @@ type Representative struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
-
-type Answer struct {
-	ID         int       `json:"id"`
-	AnswerText string    `json:"answer" binding:"required"`
-	RepID      int       `json:"representative_id" binding:"required"`
-	TicketID   int       `json:"ticket_id" binding:"required"`
-	AnsweredAt time.Time `json:"answered_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+type RequestTicketMessage struct {
+	Message string `json:"message" validate:"required,min=1,max=5000"`
+}
+type UpdateMessageRequest struct {
+	Message string `json:"message" validate:"required,min=1,max=5000"`
+}
+type TicketMessage struct {
+	ID        int       `json:"id"`
+	TicketID  int       `json:"ticket_id"`
+	UserID    int       `json:"user_id"`
+	Message   string    `json:"message" binding:"required" validate:"required,min=1,max=5000"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 type Customer struct {
 	ID        int       `json:"id"`
@@ -61,10 +67,9 @@ type RegisterRequestCustomer struct {
 type CreateTicketRequest struct {
 	Subject     string `json:"subject" binding:"required"`
 	Description string `json:"description" binding:"required"`
+	Category    string `json:"category" binding:"required"`
 }
-type CreateAnswerRequest struct {
-	AnswerText string `json:"answer" binding:"required"`
-}
+
 type ActivityLog struct {
 	ID        int       `json:"id"`
 	TicketID  int       `json:"ticket_id"`
@@ -82,9 +87,16 @@ type AssignTicketRequest struct {
 }
 
 const (
-	ActionTicketCreated = "ticket_created"
-	ActionTicketUpdated = "ticket_updated"
-	ActionStatusChanged = "status_changed"
-	ActionAnswerCreated = "answer_created"
-	ActionAnswerUpdated = "answer_updated"
+	ActionTicketCreated  = "ticket_created"
+	ActionTicketUpdated  = "ticket_updated"
+	ActionStatusChanged  = "status_changed"
+	ActionMessageCreated = "message_created"
+	ActionMessageUpdated = "message_updated"
+)
+const (
+	CategoryTechnical = "technical"
+	CategoryBilling   = "billing"
+	CategoryAccount   = "account"
+	CategoryBug       = "bug"
+	CategoryOther     = "other"
 )

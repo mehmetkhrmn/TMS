@@ -33,22 +33,24 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			handlers.AssignRepresentative(c, repo)
 		},
 	)
-	representative.PUT("/answers/:answer_id", func(context *gin.Context) {
-		handlers.UpdateAnswer(context, repo)
+	//:TODO buraya eksta ticket id ekledik ama formaliteden gibi eksta chechk koy
+	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
+		handlers.UpdateMessage(context, repo)
 	})
 
-	representative.POST("/tickets/:ticket_id/answers", func(context *gin.Context) {
-		handlers.CreateAnswer(context, repo)
+	authorized.POST("/tickets/:ticket_id/messages", func(context *gin.Context) {
+		handlers.CreateMessage(context, repo)
 	})
 
-	authorized.GET("/tickets/:ticket_id/answers", func(context *gin.Context) {
-		handlers.GetAnswers(context, repo)
+	authorized.GET("/tickets/:ticket_id/messages", func(context *gin.Context) {
+		handlers.GetMessages(context, repo)
 	})
+
 	authorized.GET("/tickets/:ticket_id/history", func(context *gin.Context) {
 		handlers.GetTicketHistory(context, repo)
 	})
-	authorized.GET("/tickets/:ticket_id/answers/:answer_id", func(context *gin.Context) {
-		handlers.GetAnswer(context, repo)
+	authorized.GET("/tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
+		handlers.GetMessage(context, repo)
 	})
 
 	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
@@ -56,7 +58,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 
 	//statusa göre ticket döndür
-	authorized.GET("/tickets/", func(context *gin.Context) {
+	admin.GET("/tickets/", func(context *gin.Context) {
 		handlers.GetTicketWith(context, repo)
 	})
 
@@ -71,10 +73,10 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 
 	//bütün ticketleri almak için
-	admin.GET("/tickets", func(context *gin.Context) {
+
+	authorized.GET("/tickets", func(context *gin.Context) {
 		handlers.GetAllTickets(context, repo)
 	})
-
 	//oluşturmak için
 	authorized.POST("/tickets", func(context *gin.Context) {
 		handlers.CreateTicket(context, repo)
