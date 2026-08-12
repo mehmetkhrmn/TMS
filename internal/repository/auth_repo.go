@@ -28,13 +28,14 @@ func (r *Repository) CreateAuthUser(tx *sql.Tx, user *models.AuthUser) error {
 }
 func (r *Repository) GetAuthUser(id int) (*models.AuthUser, error) {
 	var user models.AuthUser
-	query := "SELECT * FROM auth_users WHERE id=$1"
+	query := "SELECT id,username,role,created_at,updated_at,password_hash FROM auth_users WHERE id=$1"
 	err := r.Db.QueryRow(query, id).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.PasswordHash,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -43,4 +44,12 @@ func (r *Repository) GetAuthUser(id int) (*models.AuthUser, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+func (r *Repository) UpdatePassword(userID int, passwordHash string) error {
+	query := "UPDATE auth_users SET password_hash=$1 WHERE id=$2"
+	_, err := r.Db.Exec(query, passwordHash, userID)
+	if err != nil {
+		return err
+	}
+	return nil
 }

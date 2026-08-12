@@ -63,3 +63,13 @@ func (r *Repository) UpdateRepresentative(id int, representative *models.Represe
 	}
 	return nil
 }
+func (r *Repository) GetUserIDByRepID(repId int) (int, error) {
+	var userID int
+	query := "SELECT id FROM auth_users WHERE entity_id=$1 AND role='representative'"
+	err := r.Db.QueryRow(query, repId).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+		}
+	}
+	return userID, nil
+}

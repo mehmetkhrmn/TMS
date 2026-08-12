@@ -133,7 +133,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			})
 			return
 		}
-		err := c.BindJSON(&req)
+		err := c.ShouldBindJSON(&req)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -193,4 +193,39 @@ func Register(c *gin.Context, repo *repository.Repository) {
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 	}
+}
+func UpdatePassword(c *gin.Context, repo *repository.Repository) {
+
+	var req models.PasswordUpdateRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	userID := int(c.GetFloat64("user_id"))
+	user, err := repo.GetAuthUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.OldPassword))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "password incorrect"})
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	passwordHash := string(hash)
+	err = repo.UpdatePassword(userID, passwordHash)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "password updated",
+	})
+
 }

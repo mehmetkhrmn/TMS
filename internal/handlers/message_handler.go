@@ -61,6 +61,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository) {
 	err = repo.CreateMessage(&message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
 	}
 	c.JSON(201, message)
 }
@@ -131,6 +132,10 @@ func GetMessage(c *gin.Context, repo *repository.Repository) {
 func UpdateMessage(c *gin.Context, repo *repository.Repository) {
 	var req models.UpdateMessageRequest
 	tid, err := strconv.Atoi(c.Param("ticket_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		return
+	}
 	mid, err := strconv.Atoi(c.Param("message_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "param: message_id is invalid"})

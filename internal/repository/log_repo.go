@@ -2,7 +2,7 @@ package repository
 
 func (r *Repository) CreateActivityLog(
 	ticketID int,
-	repID int,
+	userID int,
 	action string,
 	fieldName string,
 	oldValue string,
@@ -14,7 +14,7 @@ func (r *Repository) CreateActivityLog(
 	_, err := r.Db.Exec(
 		query,
 		ticketID,
-		repID,
+		userID,
 		action,
 		fieldName,
 		oldValue,

@@ -3,15 +3,14 @@ package models
 import "time"
 
 type Ticket struct {
-	ID            int       `json:"id"`
-	Subject       string    `json:"subject" binding:"required"`
-	Description   string    `json:"description" binding:"required"`
-	CustomerID    int       `json:"customer_id" binding:"required"`
-	CustomerEmail string    `json:"customer_email" binding:"required,email"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Status        string    `json:"status"`
-	Category      string    `json:"category" binding:"required"`
+	ID          int       `json:"id"`
+	Subject     string    `json:"subject" binding:"required"`
+	Description string    `json:"description" binding:"required"`
+	CustomerID  int       `json:"customer_id" binding:"required"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Status      string    `json:"status"`
+	Category    string    `json:"category" binding:"required"`
 }
 type Representative struct {
 	ID        int       `json:"id"`
@@ -87,11 +86,13 @@ type AssignTicketRequest struct {
 }
 
 const (
-	ActionTicketCreated  = "ticket_created"
-	ActionTicketUpdated  = "ticket_updated"
-	ActionStatusChanged  = "status_changed"
-	ActionMessageCreated = "message_created"
-	ActionMessageUpdated = "message_updated"
+	ActionTicketCreated     = "ticket_created"
+	ActionTicketUpdated     = "ticket_updated"
+	ActionStatusChanged     = "status_changed"
+	ActionMessageCreated    = "message_created"
+	ActionMessageUpdated    = "message_updated"
+	ActionAssignmentRevoked = "assignment_revoked"
+	ActionAssignmentGranted = "assignment_granted"
 )
 const (
 	CategoryTechnical = "technical"
@@ -100,3 +101,14 @@ const (
 	CategoryBug       = "bug"
 	CategoryOther     = "other"
 )
+
+type TicketUpdateRequest struct {
+	Subject     string `json:"subject" `
+	Description string `json:"description" `
+	Status      string `json:"status" `
+	Category    string `json:"category" `
+}
+type PasswordUpdateRequest struct {
+	OldPassword string `json:"old_password" `
+	NewPassword string `json:"new_password" `
+}

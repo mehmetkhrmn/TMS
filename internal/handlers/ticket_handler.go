@@ -3,8 +3,11 @@ package handlers
 import (
 	"TMS/internal/models"
 	"TMS/internal/repository"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,54 +28,113 @@ func CreateTicket(c *gin.Context, repo *repository.Repository) { //repositorydek
 	//database ekliyoruz
 	if err := repo.CreateTicket(&ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant create ticket" + err.Error()})
+		return
 	}
 	c.JSON(http.StatusCreated, ticket) //burada da create ticket fonksyonu içide yazdığımız returning ile güncellenmiş json var
 
 }
 
 func GetAllTickets(c *gin.Context, repo *repository.Repository) {
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page"})
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 || limit > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		return
+	}
+
+	offset := (page - 1) * limit
+
 	role := c.GetString("role")
+
 	switch role {
 	case "customer":
-		custId := int(c.GetFloat64("entity_id"))
-		tickets, err := repo.GetCustomerTickets(custId)
+		custID := int(c.GetFloat64("entity_id"))
+
+		tickets, err := repo.GetCustomerTickets(custID, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "cant get tickets"})
 			return
 		}
-		c.JSON(http.StatusOK, tickets)
+
+		c.JSON(http.StatusOK, gin.H{
+			"data":  tickets,
+			"page":  page,
+			"limit": limit,
+		})
+
 	case "representative":
-		repId := int(c.GetFloat64("entity_id"))
-		tickets, err := repo.GetRepresentativeTickets(repId)
+		repID := int(c.GetFloat64("entity_id"))
+
+		tickets, err := repo.GetRepresentativeTickets(repID, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "cant get tickets"})
 			return
 		}
-		c.JSON(http.StatusOK, tickets)
+
+		c.JSON(http.StatusOK, gin.H{
+			"data":  tickets,
+			"page":  page,
+			"limit": limit,
+		})
+
 	case "admin":
-		tickets, err := repo.GetAllTickets()
+		tickets, err := repo.GetAllTickets(limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "cant get tickets"})
 			return
 		}
-		c.JSON(http.StatusOK, tickets)
+
+		c.JSON(http.StatusOK, gin.H{
+			"data":  tickets,
+			"page":  page,
+			"limit": limit,
+		})
+
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant get tickets"})
 		return
 	}
-
 }
 
 func GetTicketWith(c *gin.Context, repo *repository.Repository) {
 	status := c.Query("status")
 	category := c.Query("category")
-	tickets, error := repo.GetAllWith(status, category)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page"})
 		return
 	}
-	c.JSON(http.StatusOK, tickets)
 
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 || limit > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		return
+	}
+
+	offset := (page - 1) * limit
+
+	tickets, err := repo.GetAllWith(
+		status,
+		category,
+		limit,
+		offset,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  tickets,
+		"page":  page,
+		"limit": limit,
+	})
 }
 func GetTicketHistory(c *gin.Context, repo *repository.Repository) {
 	ticketID, err := strconv.Atoi(c.Param("ticket_id"))
@@ -192,6 +254,8 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
 	}
 	status := statusString
 	repId := int(c.GetFloat64("entity_id"))
+	userId := int(c.GetFloat64("user_id"))
+
 	ok, err := repo.IsRepresentativeAssigned(id, repId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -201,8 +265,18 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
 		return
 	}
+	oldTicket, err := repo.GetTicket(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	err = repo.SetStatus(id, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.CreateActivityLog(id, userId, models.ActionStatusChanged, "status", oldTicket.Status, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -231,14 +305,23 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
 		return
 	}
-	var ticket models.Ticket
-	if err := c.ShouldBindJSON(&ticket); err != nil { //burada bindliyoruz biz gönderilmeyen veriler boş kalcak bu sayede
-		c.JSON(http.StatusBadRequest, gin.H{"error": "can't bind ticket" + err.Error()})
+	var req models.TicketUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil { //burada bindliyoruz biz gönderilmeyen veriler boş kalcak bu sayede
+		c.JSON(http.StatusBadRequest, gin.H{"error": "can't bind ticket"})
 		return
+	}
+	ticket := models.Ticket{
+		ID:          oldTicket.ID,
+		Status:      req.Status,
+		Description: req.Description,
+		Subject:     req.Subject,
+		Category:    req.Category,
+		CustomerID:  oldTicket.CustomerID,
 	}
 	err = repo.UpdateTicket(id, &ticket)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
 	}
 	err = repo.CreateActivityLog(id, repID, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
 	if err != nil {
@@ -268,19 +351,51 @@ func GetCustomerTicket(ticket_id int, customer_id int, c *gin.Context, repo *rep
 func AssignRepresentative(c *gin.Context, repo *repository.Repository) {
 	repID, err := strconv.Atoi(c.Param("representative_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "representative id is invalid" + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "representative id is invalid"})
 		return
 	}
 	ticketID, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid"})
 		return
 	}
 
 	err = repo.AssignRepresentative(ticketID, repID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		if strings.Contains(err.Error(), "duplicate key") {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "representative is already assigned to this ticket",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ticket or representative not found"})
 		return
+
 	}
 	c.JSON(200, gin.H{"assigned": true})
+}
+func UnassignRepresentative(c *gin.Context, repo *repository.Repository) {
+	repID, err := strconv.Atoi(c.Param("representative_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "representative id is invalid"})
+		return
+	}
+	ticketID, err := strconv.Atoi(c.Param("ticket_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid"})
+		return
+	}
+	err = repo.UnAssignRepresentative(ticketID, repID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "representative is not assigned to this ticket",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ticket or representative not found"})
+		return
+	}
+	c.JSON(200, gin.H{"unassigned": true})
+
 }

@@ -11,6 +11,7 @@ func (r *Repository) CreateCustomerTx(tx *sql.Tx, customer *models.Customer) err
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 func (r *Repository) CreateCustomer(customer *models.Customer) error {
@@ -73,4 +74,14 @@ func (r *Repository) GetCustomerEmail(customerID int) (string, error) {
 		return "", nil
 	}
 	return email, err
+}
+func (r *Repository) GetUserIDByCustID(repId int) (int, error) {
+	var userID int
+	query := "SELECT id FROM auth_users WHERE entity_id=$1 AND role='customer'"
+	err := r.Db.QueryRow(query, repId).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+		}
+	}
+	return userID, nil
 }

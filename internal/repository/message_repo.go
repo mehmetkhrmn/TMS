@@ -11,6 +11,7 @@ func (r *Repository) CreateMessage(message *models.TicketMessage) error {
 	if err != nil {
 		return err
 	}
+	err = r.CreateActivityLog(message.TicketID, message.UserID, models.ActionMessageCreated, "message", "", "created")
 	return nil
 }
 

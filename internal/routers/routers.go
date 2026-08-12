@@ -22,6 +22,9 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	admin := authorized.Group("/")
 	admin.Use(middleware.AdminAuthMiddleware())
 
+	customer := authorized.Group("/")
+	customer.Use(middleware.CustomerMiddleware())
+
 	representative := authorized.Group("/")
 	representative.Use(middleware.RepresentativeMiddleware())
 
@@ -33,7 +36,10 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			handlers.AssignRepresentative(c, repo)
 		},
 	)
-	//:TODO buraya eksta ticket id ekledik ama formaliteden gibi eksta chechk koy
+	admin.DELETE("/tickets/:ticket_id/representatives/:representative_id",
+		func(c *gin.Context) {
+			handlers.UnassignRepresentative(c, repo)
+		})
 	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
 		handlers.UpdateMessage(context, repo)
 	})
@@ -78,7 +84,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		handlers.GetAllTickets(context, repo)
 	})
 	//oluşturmak için
-	authorized.POST("/tickets", func(context *gin.Context) {
+	customer.POST("/tickets", func(context *gin.Context) {
 		handlers.CreateTicket(context, repo)
 	})
 
@@ -105,12 +111,14 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	admin.POST("/representatives", func(context *gin.Context) { //sadece admin temsilci oluşturabilir
 		handlers.Register(context, repo)
 	})
-
-	authorized.PUT("/representatives/:representatives_id", func(context *gin.Context) {
+	authorized.PUT("/auth/password", func(context *gin.Context) {
+		handlers.UpdatePassword(context, repo)
+	})
+	admin.PUT("/representatives/:representatives_id", func(context *gin.Context) {
 		handlers.UpdateRepresentative(context, repo)
 	})
 
-	authorized.GET("/representatives/:representatives_id", func(context *gin.Context) {
+	admin.GET("/representatives/:representatives_id", func(context *gin.Context) {
 		handlers.GetRepresentative(context, repo)
 	})
 
