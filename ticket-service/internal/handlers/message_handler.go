@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"TMS/internal/models"
-	"TMS/internal/repository"
+	"TMS/ticket-service/internal/models"
+	"TMS/ticket-service/internal/repository"
 	"fmt"
 	"net/http"
 	"strconv"

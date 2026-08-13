@@ -358,7 +358,7 @@ Or, if you are using GoLand:
 2. Connect to your PostgreSQL server.
 3. Right-click the **tms** database.
 4. Select **Run SQL Script...**
-5. Choose `internal/database/schema.sql`.
+5. Choose `ticket-service/internal/database/schema.sql`.
 6. Execute the script.
 
 ### 5. Configure the database connection

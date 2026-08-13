@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"TMS/internal/models"
+	"TMS/ticket-service/internal/models"
 	"database/sql"
 	"errors"
 	"fmt"

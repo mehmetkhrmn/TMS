@@ -1,9 +1,9 @@
 package routers
 
 import (
-	"TMS/internal/handlers"
-	"TMS/internal/middleware"
-	"TMS/internal/repository"
+	handlers2 "TMS/ticket-service/internal/handlers"
+	middleware2 "TMS/ticket-service/internal/middleware"
+	"TMS/ticket-service/internal/repository"
 
 	"database/sql"
 
@@ -17,109 +17,109 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	repo := repository.NewRepository(db)
 
 	authorized := router.Group("/") //route için alt grup oluşturuyorum
-	authorized.Use(middleware.AuthMiddleware())
+	authorized.Use(middleware2.AuthMiddleware())
 
 	admin := authorized.Group("/")
-	admin.Use(middleware.AdminAuthMiddleware())
+	admin.Use(middleware2.AdminAuthMiddleware())
 
 	customer := authorized.Group("/")
-	customer.Use(middleware.CustomerMiddleware())
+	customer.Use(middleware2.CustomerMiddleware())
 
 	representative := authorized.Group("/")
-	representative.Use(middleware.RepresentativeMiddleware())
+	representative.Use(middleware2.RepresentativeMiddleware())
 
 	router.POST("/login", func(context *gin.Context) {
-		handlers.Login(context, repo)
+		handlers2.Login(context, repo)
 	})
 	admin.POST("/tickets/:ticket_id/representatives/:representative_id",
 		func(c *gin.Context) {
-			handlers.AssignRepresentative(c, repo)
+			handlers2.AssignRepresentative(c, repo)
 		},
 	)
 	admin.DELETE("/tickets/:ticket_id/representatives/:representative_id",
 		func(c *gin.Context) {
-			handlers.UnassignRepresentative(c, repo)
+			handlers2.UnassignRepresentative(c, repo)
 		})
 	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
-		handlers.UpdateMessage(context, repo)
+		handlers2.UpdateMessage(context, repo)
 	})
 
 	authorized.POST("/tickets/:ticket_id/messages", func(context *gin.Context) {
-		handlers.CreateMessage(context, repo)
+		handlers2.CreateMessage(context, repo)
 	})
 
 	authorized.GET("/tickets/:ticket_id/messages", func(context *gin.Context) {
-		handlers.GetMessages(context, repo)
+		handlers2.GetMessages(context, repo)
 	})
 
 	authorized.GET("/tickets/:ticket_id/history", func(context *gin.Context) {
-		handlers.GetTicketHistory(context, repo)
+		handlers2.GetTicketHistory(context, repo)
 	})
 	authorized.GET("/tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
-		handlers.GetMessage(context, repo)
+		handlers2.GetMessage(context, repo)
 	})
 
 	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
-		handlers.UpdateTicket(c, repo)
+		handlers2.UpdateTicket(c, repo)
 	})
 
 	//statusa göre ticket döndür
 	admin.GET("/tickets/", func(context *gin.Context) {
-		handlers.GetTicketWith(context, repo)
+		handlers2.GetTicketWith(context, repo)
 	})
 
 	//tek bir ticket görüntüleme
 	authorized.GET("/tickets/:ticket_id", func(context *gin.Context) {
-		handlers.GetTicket(context, repo)
+		handlers2.GetTicket(context, repo)
 	})
 
 	//set status
 	representative.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
-		handlers.SetTicketStatus(context, repo)
+		handlers2.SetTicketStatus(context, repo)
 	})
 
 	//bütün ticketleri almak için
 
 	authorized.GET("/tickets", func(context *gin.Context) {
-		handlers.GetAllTickets(context, repo)
+		handlers2.GetAllTickets(context, repo)
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers.CreateTicket(context, repo)
+		handlers2.CreateTicket(context, repo)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {
-		handlers.GetCustomers(context, repo)
+		handlers2.GetCustomers(context, repo)
 	})
 
 	router.POST("/customers", func(context *gin.Context) {
-		handlers.Register(context, repo)
+		handlers2.Register(context, repo)
 	})
 
 	representative.GET("/customers/:customer_id", func(context *gin.Context) {
-		handlers.GetCustomer(context, repo)
+		handlers2.GetCustomer(context, repo)
 	})
 
 	representative.PUT("/customers/:customers_id", func(context *gin.Context) {
-		handlers.UpdateCustomer(context, repo)
+		handlers2.UpdateCustomer(context, repo)
 	})
 
 	admin.GET("/representatives", func(context *gin.Context) {
-		handlers.GetAllRepresentatives(context, repo)
+		handlers2.GetAllRepresentatives(context, repo)
 	})
 
 	admin.POST("/representatives", func(context *gin.Context) { //sadece admin temsilci oluşturabilir
-		handlers.Register(context, repo)
+		handlers2.Register(context, repo)
 	})
 	authorized.PUT("/auth/password", func(context *gin.Context) {
-		handlers.UpdatePassword(context, repo)
+		handlers2.UpdatePassword(context, repo)
 	})
 	admin.PUT("/representatives/:representatives_id", func(context *gin.Context) {
-		handlers.UpdateRepresentative(context, repo)
+		handlers2.UpdateRepresentative(context, repo)
 	})
 
 	admin.GET("/representatives/:representatives_id", func(context *gin.Context) {
-		handlers.GetRepresentative(context, repo)
+		handlers2.GetRepresentative(context, repo)
 	})
 
 	return router
