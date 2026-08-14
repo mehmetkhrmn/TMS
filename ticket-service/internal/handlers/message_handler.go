@@ -2,15 +2,17 @@ package handlers
 
 import (
 	"TMS/ticket-service/internal/models"
+	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateMessage(c *gin.Context, repo *repository.Repository) {
+func CreateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client) {
 	var req models.RequestTicketMessage
 	id, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -62,6 +64,15 @@ func CreateMessage(c *gin.Context, repo *repository.Repository) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 		return
+	}
+	err = client.CreateNotification(notification.NotificationRequest{
+		TicketID: id,
+		UserID:   userID,
+		Type:     "message_created",
+		Message:  "Message created",
+	})
+	if err != nil {
+		slog.Error("Notification can't send")
 	}
 	c.JSON(201, message)
 }
@@ -129,7 +140,7 @@ func GetMessage(c *gin.Context, repo *repository.Repository) {
 	}
 	c.JSON(200, message)
 }
-func UpdateMessage(c *gin.Context, repo *repository.Repository) {
+func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client) {
 	var req models.UpdateMessageRequest
 	tid, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -222,7 +233,18 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	err = repo.CreateActivityLog(mid, userID, models.ActionMessageUpdated, "description", oldValue.Message, req.Message)
+
+	err = repo.CreateActivityLog(tid, userID, models.ActionMessageUpdated, "description", oldValue.Message, req.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = client.CreateNotification(notification.NotificationRequest{
+		TicketID: tid,
+		UserID:   userID,
+		Type:     "message_updated",
+		Message:  "Message updated",
+	})
 	c.JSON(http.StatusOK, message)
 
 }

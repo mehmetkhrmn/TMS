@@ -3,6 +3,7 @@ package routers
 import (
 	handlers2 "TMS/ticket-service/internal/handlers"
 	middleware2 "TMS/ticket-service/internal/middleware"
+	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
 
 	"database/sql"
@@ -15,6 +16,10 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	router := gin.Default()
 	gin.SetMode(gin.DebugMode)
 	repo := repository.NewRepository(db)
+
+	notificationClient := notification.NewClient(
+		"http://localhost:8081",
+	)
 
 	authorized := router.Group("/") //route için alt grup oluşturuyorum
 	authorized.Use(middleware2.AuthMiddleware())
@@ -41,11 +46,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			handlers2.UnassignRepresentative(c, repo)
 		})
 	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
-		handlers2.UpdateMessage(context, repo)
+		handlers2.UpdateMessage(context, repo, notificationClient)
 	})
 
 	authorized.POST("/tickets/:ticket_id/messages", func(context *gin.Context) {
-		handlers2.CreateMessage(context, repo)
+		handlers2.CreateMessage(context, repo, notificationClient)
 	})
 
 	authorized.GET("/tickets/:ticket_id/messages", func(context *gin.Context) {
@@ -60,7 +65,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 
 	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
-		handlers2.UpdateTicket(c, repo)
+		handlers2.UpdateTicket(c, repo, notificationClient)
 	})
 
 	//statusa göre ticket döndür
@@ -75,7 +80,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	//set status
 	representative.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
-		handlers2.SetTicketStatus(context, repo)
+		handlers2.SetTicketStatus(context, repo, notificationClient)
 	})
 
 	//bütün ticketleri almak için
@@ -85,7 +90,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers2.CreateTicket(context, repo)
+		handlers2.CreateTicket(context, repo, notificationClient)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {

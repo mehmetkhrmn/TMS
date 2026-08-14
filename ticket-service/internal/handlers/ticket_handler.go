@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"TMS/ticket-service/internal/models"
+	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,13 +14,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateTicket(c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
+func CreateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client) { //repositorydeki structı gönderdik bağlantı kurudk db ile
 	var req models.CreateTicketRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind ticket" + err.Error()})
 		return
 	}
 	custId := int(c.GetFloat64("entity_id"))
+	userId := int(c.GetFloat64("user_id"))
 	ticket := models.Ticket{
 		Subject:     req.Subject,
 		Description: req.Description,
@@ -29,6 +32,15 @@ func CreateTicket(c *gin.Context, repo *repository.Repository) { //repositorydek
 	if err := repo.CreateTicket(&ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant create ticket" + err.Error()})
 		return
+	}
+	err := client.CreateNotification(notification.NotificationRequest{
+		TicketID: ticket.ID,
+		UserID:   userId,
+		Type:     "ticket_created",
+		Message:  "Your ticket has been created",
+	})
+	if err != nil {
+		slog.Error("Notification can't sent")
 	}
 	c.JSON(http.StatusCreated, ticket) //burada da create ticket fonksyonu içide yazdığımız returning ile güncellenmiş json var
 
@@ -244,7 +256,7 @@ func GetTicket(c *gin.Context, repo *repository.Repository) {
 	c.JSON(http.StatusOK, ticket)
 }
 
-func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
+func SetTicketStatus(c *gin.Context, repo *repository.Repository, client *notification.Client) {
 	idString := c.Param("ticket_id")
 	statusString := c.Query("status") //gin iki tane parametre almıyo o yüzden query den alıyoz
 	id, err := strconv.Atoi(idString)
@@ -281,10 +293,19 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	err = client.CreateNotification(notification.NotificationRequest{
+		TicketID: id,
+		UserID:   userId,
+		Type:     "ticket_updated",
+		Message:  "Ticket status updated to -> " + statusString,
+	})
+	if err != nil {
+		slog.Error("Notification can't sent")
+	}
 	c.JSON(200, gin.H{"id": id, "status": status})
 }
 
-func UpdateTicket(c *gin.Context, repo *repository.Repository) {
+func UpdateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client) {
 	id, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
@@ -323,10 +344,20 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 		return
 	}
-	err = repo.CreateActivityLog(id, repID, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
+	userId := int(c.GetFloat64("user_id"))
+	err = repo.CreateActivityLog(id, userId, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 		return
+	}
+	err = client.CreateNotification(notification.NotificationRequest{
+		TicketID: id,
+		UserID:   userId,
+		Type:     "ticket_updated",
+		Message:  "Ticket updated",
+	})
+	if err != nil {
+		slog.Error("Notification can't sent")
 	}
 	c.JSON(200, ticket)
 }

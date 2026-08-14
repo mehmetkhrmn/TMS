@@ -3,6 +3,7 @@ package handlers
 import (
 	"TMS/notification-service/internal/models"
 	"TMS/notification-service/internal/repository"
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -16,18 +17,15 @@ func CreateNotification(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	switch notification.Type {	// geçerli notification typeları buraya yazılmalı
-	case models.NotificationTicketCreated,
-		models.NotificationTicketUpdated,
-		models.NotificationMessageCreated,
-		models.NotificationMessageReplied:
 
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid notification type",
-		})
+	// geçerli notification typeları buraya yazılmalı
+	valid := models.IsValidNotificationType(notification.Type)
+
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification type"})
 		return
 	}
+
 	err = repo.CreateNotification(&notification)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -44,7 +42,15 @@ func GetNotification(c *gin.Context, repo *repository.Repository) {
 	}
 	notif, err := repo.GetNotification(notifID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "notification not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if notif == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "notification not found"})
 		return
 	}
 	c.JSON(http.StatusOK, notif)
