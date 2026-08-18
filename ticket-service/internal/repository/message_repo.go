@@ -3,21 +3,25 @@ package repository
 import (
 	"TMS/ticket-service/internal/models"
 	"database/sql"
+	"log"
 )
 
-func (r *Repository) CreateMessage(message *models.TicketMessage) error {
+func (r *Repository) CreateMessage(tx *sql.Tx, message *models.TicketMessage) error {
 	query := "INSERT INTO ticket_messages(message,user_id,ticket_id) values($1,$2,$3) RETURNING id, created_at,updated_at"
 	err := r.Db.QueryRow(query, message.Message, message.UserID, message.TicketID).Scan(&message.ID, &message.CreatedAt, &message.UpdatedAt)
 	if err != nil {
 		return err
 	}
-	err = r.CreateActivityLog(message.TicketID, message.UserID, models.ActionMessageCreated, "message", "", "created")
+	err = r.CreateActivityLog(tx, message.TicketID, message.UserID, models.ActionMessageCreated, "message", "", "created")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (r *Repository) UpdateMessage(id int, message *models.UpdateMessageRequest) error {
+func (r *Repository) UpdateMessage(tx *sql.Tx, id int, message *models.UpdateMessageRequest) error {
 	query := "UPDATE ticket_messages SET message=$1 ,updated_at=NOW() WHERE id=$2"
-	_, err := r.Db.Exec(query, message.Message, id)
+	_, err := tx.Exec(query, message.Message, id)
 	if err != nil {
 		return err
 	}
@@ -34,9 +38,6 @@ func (r *Repository) GetMessage(messageId int) (*models.TicketMessage, error) {
 		&message.CreatedAt,
 		&message.UpdatedAt)
 
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 
 	if err != nil {
 		return nil, err
@@ -51,7 +52,12 @@ func (r *Repository) GetMessages(ticketId int) ([]models.TicketMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("error closing rows: %s", err)
+		}
+	}()
 
 	for rows.Next() {
 		var message models.TicketMessage
@@ -63,9 +69,7 @@ func (r *Repository) GetMessages(ticketId int) ([]models.TicketMessage, error) {
 			&message.CreatedAt,
 			&message.UpdatedAt,
 		); err != nil {
-			if err == sql.ErrNoRows {
-				return []models.TicketMessage{}, nil
-			}
+
 			return nil, err
 		}
 		messages = append(messages, message)

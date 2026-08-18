@@ -10,9 +10,16 @@ func (r *Repository) GetAuthUserByUsername(username string) (*models.AuthUser, e
 	query := "SELECT id,username,password_hash,role,entity_id FROM auth_users WHERE username=$1"
 	err := r.Db.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
+	return &authUser, nil
+}
+func (r *Repository) GetAuthUserByUsernameTx(tx *sql.Tx, username string) (*models.AuthUser, error) {
+	var authUser models.AuthUser
+	query := "SELECT id,username,password_hash,role,entity_id FROM auth_users WHERE username=$1"
+	err := tx.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
+
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +44,12 @@ func (r *Repository) GetAuthUser(id int) (*models.AuthUser, error) {
 		&user.UpdatedAt,
 		&user.PasswordHash,
 	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
+
 func (r *Repository) UpdatePassword(userID int, passwordHash string) error {
 	query := "UPDATE auth_users SET password_hash=$1 WHERE id=$2"
 	_, err := r.Db.Exec(query, passwordHash, userID)
@@ -52,4 +57,16 @@ func (r *Repository) UpdatePassword(userID int, passwordHash string) error {
 		return err
 	}
 	return nil
+}
+func (r *Repository) IsMailAvailable(tx *sql.Tx, mail string) (bool, error) {
+	var exists bool
+
+	query := "SELECT EXISTS ( SELECT 1 FROM auth_users WHERE mail = $1)"
+
+	err := tx.QueryRow(query, mail).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return !exists, nil
 }

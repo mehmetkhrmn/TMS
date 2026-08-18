@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"TMS/ticket-service/internal/messaging"
 	"TMS/ticket-service/internal/models"
 	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
@@ -14,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client) { //repositorydeki structı gönderdik bağlantı kurudk db ile
+func CreateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) { //repositorydeki structı gönderdik bağlantı kurudk db ile
 	var req models.CreateTicketRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind ticket" + err.Error()})
@@ -28,9 +29,22 @@ func CreateTicket(c *gin.Context, repo *repository.Repository, client *notificat
 		CustomerID:  custId,
 		Category:    req.Category,
 	}
+	tx, error := repo.Db.Begin()
+	if error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+		return
+	}
+	defer func() {
+		_= tx.Rollback()
+
+	}()
 	//database ekliyoruz
-	if err := repo.CreateTicket(&ticket); err != nil {
+	if err := repo.CreateTicket(tx, &ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant create ticket" + err.Error()})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	err := client.CreateNotification(notification.NotificationRequest{
@@ -256,7 +270,7 @@ func GetTicket(c *gin.Context, repo *repository.Repository) {
 	c.JSON(http.StatusOK, ticket)
 }
 
-func SetTicketStatus(c *gin.Context, repo *repository.Repository, client *notification.Client) {
+func SetTicketStatus(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
 	idString := c.Param("ticket_id")
 	statusString := c.Query("status") //gin iki tane parametre almıyo o yüzden query den alıyoz
 	id, err := strconv.Atoi(idString)
@@ -282,13 +296,22 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository, client *notifi
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	err = repo.SetStatus(id, status)
+	tx, err := repo.Db.Begin()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	err = repo.CreateActivityLog(id, userId, models.ActionStatusChanged, "status", oldTicket.Status, status)
+	err = repo.SetStatus(tx, id, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.CreateActivityLog(tx, id, userId, models.ActionStatusChanged, "status", oldTicket.Status, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err= tx.Commit()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -305,7 +328,7 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository, client *notifi
 	c.JSON(200, gin.H{"id": id, "status": status})
 }
 
-func UpdateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client) {
+func UpdateTicket(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
 	id, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
@@ -339,15 +362,25 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository, client *notificat
 		Category:    req.Category,
 		CustomerID:  oldTicket.CustomerID,
 	}
-	err = repo.UpdateTicket(id, &ticket)
+	tx, err := repo.Db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.UpdateTicket(tx, id, &ticket)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
 		return
 	}
 	userId := int(c.GetFloat64("user_id"))
-	err = repo.CreateActivityLog(id, userId, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
+	err = repo.CreateActivityLog(tx, id, userId, models.ActionTicketUpdated, "description", oldTicket.Description, oldTicket.Description)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+	err= tx.Commit()
+	if err!= nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	err = client.CreateNotification(notification.NotificationRequest{
@@ -390,8 +423,12 @@ func AssignRepresentative(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid"})
 		return
 	}
-
-	err = repo.AssignRepresentative(ticketID, repID)
+	tx, err := repo.Db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.AssignRepresentative(tx, ticketID, repID)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			c.JSON(http.StatusConflict, gin.H{
@@ -402,6 +439,10 @@ func AssignRepresentative(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "ticket or representative not found"})
 		return
 
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"assigned": true})
 }
@@ -416,7 +457,17 @@ func UnassignRepresentative(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid"})
 		return
 	}
-	err = repo.UnAssignRepresentative(ticketID, repID)
+	tx, err := repo.Db.Begin()
+	defer func(){
+		_=tx.Rollback()
+
+	}()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.UnAssignRepresentative(tx, ticketID, repID)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -425,6 +476,11 @@ func UnassignRepresentative(c *gin.Context, repo *repository.Repository) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "ticket or representative not found"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{"unassigned": true})

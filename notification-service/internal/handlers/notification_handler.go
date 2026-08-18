@@ -4,6 +4,7 @@ import (
 	"TMS/notification-service/internal/models"
 	"TMS/notification-service/internal/repository"
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -19,17 +20,17 @@ func CreateNotification(c *gin.Context, repo *repository.Repository) {
 	}
 
 	// geçerli notification typeları buraya yazılmalı
-	valid := models.IsValidNotificationType(notification.Type)
 
-	if !valid {
+
+	if !models.IsValidNotificationType(notification.Type) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification type"})
 		return
 	}
 
 	err = repo.CreateNotification(&notification)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		slog.Error("notification service unavailable", "error", err)
+
 	}
 	c.JSON(http.StatusCreated, notification)
 

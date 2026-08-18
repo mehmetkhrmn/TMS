@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -46,7 +47,12 @@ func (c *Client) CreateNotification(notification NotificationRequest) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()                              //bağlantıyı ,isteği kapatıyoruz
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("error closing response body: %s", err)
+		}
+	}() //bağlantıyı ,isteği kapatıyoruz
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 { //200 ile 300 arasındaki kodlar genelde onaylandı anlamında taşır zaten biz birkaçını kullnadık .diğer kodlarda 500,404 gibi yi kapsayacak her biri için case yazmaya gerek yok
 		return fmt.Errorf(
 			"notification service returned status: %d",

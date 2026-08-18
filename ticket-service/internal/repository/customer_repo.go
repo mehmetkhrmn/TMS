@@ -3,6 +3,7 @@ package repository
 import (
 	"TMS/ticket-service/internal/models"
 	"database/sql"
+	"log"
 )
 
 func (r *Repository) CreateCustomerTx(tx *sql.Tx, customer *models.Customer) error {
@@ -27,9 +28,6 @@ func (r *Repository) GetCustomer(id int) (*models.Customer, error) {
 	query := "SELECT id,name,email,created_at,updated_at FROM customers WHERE id=$1"
 	err := r.Db.QueryRow(query, id).Scan(&customer.ID, &customer.Name, &customer.Email, &customer.CreatedAt, &customer.UpdatedAt) //Changed to QueryRow and used Scan
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
 
@@ -40,19 +38,25 @@ func (r *Repository) GetCustomers() ([]models.Customer, error) {
 	query := "SELECT id,name,email,created_at,updated_at FROM customers"
 	rows, err := r.Db.Query(query)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 	for rows.Next() {
 		var customer models.Customer
-		rows.Scan(&customer.ID,
+		err := rows.Scan(&customer.ID,
 			&customer.Name,
 			&customer.Email,
 			&customer.CreatedAt,
 			&customer.UpdatedAt)
+
+		if err != nil {
+			return nil, err
+		}
 		customers = append(customers, customer)
 	}
 	return customers, nil
@@ -70,18 +74,15 @@ func (r *Repository) GetCustomerEmail(customerID int) (string, error) {
 	row := r.Db.QueryRow(query, customerID)
 	var email string
 	err := row.Scan(&email)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
 	return email, err
 }
-func (r *Repository) GetUserIDByCustID(repId int) (int, error) {
+func (r *Repository) GetUserIDByCustID(custId int) (int, error) {
 	var userID int
 	query := "SELECT id FROM auth_users WHERE entity_id=$1 AND role='customer'"
-	err := r.Db.QueryRow(query, repId).Scan(&userID)
+	err := r.Db.QueryRow(query, custId).Scan(&userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-		}
+		return 0, err
 	}
+
 	return userID, nil
 }

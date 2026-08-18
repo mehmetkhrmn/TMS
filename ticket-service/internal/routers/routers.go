@@ -2,23 +2,25 @@ package routers
 
 import (
 	handlers2 "TMS/ticket-service/internal/handlers"
+	"TMS/ticket-service/internal/messaging"
 	middleware2 "TMS/ticket-service/internal/middleware"
 	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
+	"os"
 
 	"database/sql"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(db *sql.DB) *gin.Engine {
+func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 
 	router := gin.Default()
 	gin.SetMode(gin.DebugMode)
 	repo := repository.NewRepository(db)
 
 	notificationClient := notification.NewClient(
-		"http://localhost:8081",
+		os.Getenv("NOTIFICATION_SERVICE_URL"),
 	)
 
 	authorized := router.Group("/") //route için alt grup oluşturuyorum
@@ -46,11 +48,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			handlers2.UnassignRepresentative(c, repo)
 		})
 	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
-		handlers2.UpdateMessage(context, repo, notificationClient)
+		handlers2.UpdateMessage(context, repo, notificationClient, rabbit)
 	})
 
 	authorized.POST("/tickets/:ticket_id/messages", func(context *gin.Context) {
-		handlers2.CreateMessage(context, repo, notificationClient)
+		handlers2.CreateMessage(context, repo, notificationClient, rabbit)
 	})
 
 	authorized.GET("/tickets/:ticket_id/messages", func(context *gin.Context) {
@@ -65,7 +67,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 
 	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
-		handlers2.UpdateTicket(c, repo, notificationClient)
+		handlers2.UpdateTicket(c, repo, notificationClient, rabbit)
 	})
 
 	//statusa göre ticket döndür
@@ -80,7 +82,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	//set status
 	representative.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
-		handlers2.SetTicketStatus(context, repo, notificationClient)
+		handlers2.SetTicketStatus(context, repo, notificationClient, rabbit)
 	})
 
 	//bütün ticketleri almak için
@@ -90,7 +92,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers2.CreateTicket(context, repo, notificationClient)
+		handlers2.CreateTicket(context, repo, notificationClient, rabbit)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {

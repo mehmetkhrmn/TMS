@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 func Connect() (*sql.DB, error) {
-	err := godotenv.Load("ticket-service/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 		os.Exit(1)
@@ -22,13 +23,18 @@ func Connect() (*sql.DB, error) {
 		" sslmode=" + os.Getenv("DB_SSLMODE")
 
 	db, dberr := sql.Open("postgres", connStr) //iki değişken döndürüyor ve sıralamsı db,err şeklinde
-	//bu main bitince çalışıyor
 
 	if dberr != nil {
-		log.Fatal(dberr)
+		return nil, dberr
+
 	}
-	if dberr := db.Ping(); dberr != nil { //buradada db ye pingliyoruz hata döndürüyorsa yine logluyoruz
-		log.Fatal(dberr)
+	for { //bağlantıdan olumlu dönüş alana kadar tekrarlayan mekanizma
+		if err := db.Ping(); err == nil {
+			break
+		}
+
+		log.Println("Database unavailable, retrying...")
+		time.Sleep(5 * time.Second)
 	}
 	return db, nil
 }

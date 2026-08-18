@@ -3,6 +3,7 @@ package repository
 import (
 	"TMS/ticket-service/internal/models"
 	"database/sql"
+	"log"
 )
 
 func (r *Repository) CreateRepresentativeTx(tx *sql.Tx, rep *models.Representative) error {
@@ -26,19 +27,28 @@ func (r *Repository) GetAllRepresentatives() ([]models.Representative, error) {
 	query := "SELECT id,name,created_at,updated_at FROM representatives"
 	rows, err := r.Db.Query(query)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 	for rows.Next() {
 		var representative models.Representative
-		rows.Scan(&representative.ID,
+		err := rows.Scan(&representative.ID,
 			&representative.Name,
 			&representative.CreatedAt,
 			&representative.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
 		representatives = append(representatives, representative)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 	return representatives, nil
 }
@@ -47,9 +57,6 @@ func (r *Repository) GetRepresentative(id int) (*models.Representative, error) {
 	query := "SELECT id,name,created_at,updated_at FROM representatives where id=$1"
 	err := r.Db.QueryRow(query, id).Scan(&representative.ID, &representative.Name, &representative.CreatedAt, &representative.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
 
@@ -68,8 +75,7 @@ func (r *Repository) GetUserIDByRepID(repId int) (int, error) {
 	query := "SELECT id FROM auth_users WHERE entity_id=$1 AND role='representative'"
 	err := r.Db.QueryRow(query, repId).Scan(&userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-		}
+		return 0, err
 	}
 	return userID, nil
 }

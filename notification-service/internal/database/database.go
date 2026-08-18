@@ -10,7 +10,7 @@ import (
 )
 
 func Connect() (*sql.DB, error) {
-	err := godotenv.Load("notification-service/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 		os.Exit(1)

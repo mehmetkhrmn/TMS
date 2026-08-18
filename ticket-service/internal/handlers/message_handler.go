@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"TMS/ticket-service/internal/messaging"
 	"TMS/ticket-service/internal/models"
 	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
@@ -12,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client) {
+func CreateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
 	var req models.RequestTicketMessage
 	id, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -38,6 +39,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is not assigned"})
 			return
 		}
+
 	case "customer":
 		cusID := int(c.GetFloat64("entity_id"))
 		ok, err := repo.IsTicketOwner(id, cusID)
@@ -60,19 +62,44 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 		Message:  req.Message,
 	}
 	//burada JSON dan alınan değeri değiştiriyoruz JSON daki veri manipüle edilebilir
-	err = repo.CreateMessage(&message)
+	tx, err := repo.Db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer func() {
+		_ = tx.Rollback()
+
+	}()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	}
+	err = repo.CreateMessage(tx, &message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
+		return
+	}
+
+	var mesType string
+	if role == "representative" {
+		mesType = "message_replied"
+	} else {
+		mesType = "message_updated"
+	}
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	err = client.CreateNotification(notification.NotificationRequest{
 		TicketID: id,
 		UserID:   userID,
-		Type:     "message_created",
+		Type:     mesType,
 		Message:  "Message created",
 	})
 	if err != nil {
-		slog.Error("Notification can't send")
+		slog.Error("Notification can't send", "error", err)
 	}
 	c.JSON(201, message)
 }
@@ -140,7 +167,9 @@ func GetMessage(c *gin.Context, repo *repository.Repository) {
 	}
 	c.JSON(200, message)
 }
-func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client) {
+
+// todo : eski rest fonsiyonalrını MQ ile uyumlu oalcak şekilde değiştir
+func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
 	var req models.UpdateMessageRequest
 	tid, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -228,15 +257,29 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 	message := models.UpdateMessageRequest{
 		Message: req.Message,
 	}
-	err = repo.UpdateMessage(mid, &message)
+	tx, err := repo.Db.Begin()
+	defer func() {
+		_ = tx.Rollback()
+
+	}()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = repo.UpdateMessage(tx, mid, &message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = repo.CreateActivityLog(tid, userID, models.ActionMessageUpdated, "description", oldValue.Message, req.Message)
+	err = repo.CreateActivityLog(tx, tid, userID, models.ActionMessageUpdated, "description", oldValue.Message, req.Message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 	err = client.CreateNotification(notification.NotificationRequest{
@@ -245,6 +288,10 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 		Type:     "message_updated",
 		Message:  "Message updated",
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, message)
 
 }

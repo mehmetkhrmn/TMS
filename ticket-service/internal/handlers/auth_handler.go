@@ -3,6 +3,7 @@ package handlers
 import (
 	"TMS/ticket-service/internal/models"
 	"TMS/ticket-service/internal/repository"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -40,7 +41,9 @@ func Login(c *gin.Context, repo *repository.Repository) {
 		"exp":       time.Now().Add(24 * time.Hour).Unix(),
 		"iat":       time.Now().Unix(),
 	})
-
+	if os.Getenv("JWT_SECRET") == "" {
+		log.Fatal("JWT_SECRET environment variable not set")
+	}
 	secretKey := []byte(os.Getenv("JWT_SECRET"))
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
@@ -60,7 +63,10 @@ func Register(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
 		return
 	}
-	defer tx.Rollback() //rollback oalcak ama zaten commitli olacak
+	defer func() {
+		_ = tx.Rollback()
+
+	}() //rollback olacak ama zaten commitli olacak
 
 	path := c.FullPath()
 
@@ -72,7 +78,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		user, err := repo.GetAuthUserByUsername(req.Username)
+		user, err := repo.GetAuthUserByUsernameTx(tx, req.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -82,6 +88,16 @@ func Register(c *gin.Context, repo *repository.Repository) {
 				"error": "username already exists" + user.Username,
 			})
 			return
+		}
+		avab, err := repo.IsMailAvailable(tx, req.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if avab == false {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "username already registered" + user.Username,
+			})
 		}
 
 		hash, err := bcrypt.GenerateFromPassword(
@@ -138,7 +154,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		user, err := repo.GetAuthUserByUsername(req.Username)
+		user, err := repo.GetAuthUserByUsernameTx(tx, req.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
