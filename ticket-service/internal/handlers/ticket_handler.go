@@ -333,7 +333,7 @@ func SetTicketStatus(c *gin.Context, repo *repository.Repository, rabbit *messag
 
 	eventID := uuid.New().String()
 
-	err = rabbit.Publish(notification.NotificationRequest{
+	err = rabbit.PublishNotification(notification.NotificationRequest{
 		EventID:         eventID,
 		TicketID:        id,
 		ActorUserID:     userId,
@@ -377,12 +377,24 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 	}
 	ticket := models.Ticket{
 		ID:          oldTicket.ID,
-		Status:      req.Status,
-		Description: req.Description,
-		Subject:     req.Subject,
-		Category:    req.Category,
+		Description: oldTicket.Description,
+		Subject:     oldTicket.Subject,
+		Category:    oldTicket.Category,
+		Status:      oldTicket.Status,
 		CustomerID:  oldTicket.CustomerID,
 	}
+	if req.Description != "" {
+		ticket.Description = req.Description
+	}
+
+	if req.Subject != "" {
+		ticket.Subject = req.Subject
+	}
+
+	if req.Category != "" {
+		ticket.Category = req.Category
+	}
+
 	tx, err := repo.Db.Begin()
 	defer func() {
 		_ = tx.Rollback()
@@ -409,7 +421,7 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 	}
 	eventID := uuid.New().String()
 	recipId, err := repo.GetCustomerUserIDByTicketID(id)
-	err = rabbit.Publish(notification.NotificationRequest{
+	err = rabbit.PublishNotification(notification.NotificationRequest{
 		TicketID:        id,
 		ActorUserID:     userId,
 		RecipientUserID: recipId,
@@ -487,7 +499,7 @@ func AssignRepresentative(rabbit *messaging.RabbitMQ, c *gin.Context, repo *repo
 	}
 
 	eventID := uuid.New().String()
-	err = rabbit.Publish(notification.NotificationRequest{
+	err = rabbit.PublishNotification(notification.NotificationRequest{
 		TicketID:        ticketID,
 		RecipientUserID: userId,
 		Type:            "ticket_assigned",
@@ -557,7 +569,7 @@ func UnassignRepresentative(rabbit *messaging.RabbitMQ, c *gin.Context, repo *re
 		OccurredAt:      time.Now(),
 	}
 
-	err = rabbit.Publish(notification)
+	err = rabbit.PublishNotification(notification)
 	if err != nil {
 		slog.Error("Notification can't publish", "error", err)
 	}

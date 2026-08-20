@@ -124,8 +124,7 @@ func (r *Repository) SetStatus(tx *sql.Tx, id int, status string) error {
 }
 
 func (r *Repository) UpdateTicket(tx *sql.Tx, id int, ticket *models.Ticket) error {
-	query := `
-        UPDATE tickets SET subject = COALESCE(NULLIF($1, ''), subject),description = COALESCE(NULLIF($2, ''), description),status = COALESCE(NULLIF($3, ''), status),category=COALESCE(NULLIF($4,'')) ,updated_at = NOW() WHERE id = $5 RETURNING created_at,updated_at` // burada eğer değer null ise önceki değeri koru çünkü bize put edilen jsonda her alan dolu olmayabilir
+	query := `UPDATE tickets SET subject = COALESCE(NULLIF($1, ''), subject),description = COALESCE(NULLIF($2, ''), description),status = COALESCE(NULLIF($3, ''), status),category=COALESCE(NULLIF($4,''),category) ,updated_at = NOW() WHERE id = $5 RETURNING created_at,updated_at` // burada eğer değer null ise önceki değeri koru çünkü bize put edilen jsonda her alan dolu olmayabilir
 	err := tx.QueryRow(query, ticket.Subject, ticket.Description, ticket.Status, ticket.Category, id).Scan(&ticket.CreatedAt, &ticket.UpdatedAt)
 	if err != nil {
 		return err

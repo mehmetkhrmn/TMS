@@ -3,6 +3,7 @@ package messaging
 import (
 	"TMS/ticket-service/internal/notification"
 	"encoding/json"
+	"log/slog"
 	"os"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -55,19 +56,6 @@ func (r *RabbitMQ) PublishNotification(notification notification.NotificationReq
 	if err != nil {
 		return err
 	}
+	slog.Info("RabbitMQ publish başarılı")
 	return nil
-}
-func (r *RabbitMQ) Publish(event notification.NotificationRequest) error {
-	body, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	return r.Channel.Publish("",
-		"notifcations",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		})
 }

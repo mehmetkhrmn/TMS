@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -145,10 +146,15 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	err = rabbit.Publish(request)
+	err = rabbit.PublishNotification(request)
 	if err != nil {
 		slog.Error("Notification can't publish", "error", err)
 	}
+	slog.Info("Publishing notification",
+		"exchange", os.Getenv("RABBITMQ_EXCHANGE"),
+		"routing_key", os.Getenv("RABBITMQ_ROUTING_KEY"),
+		"queue", os.Getenv("RABBITMQ_QUEUE"),
+	)
 	c.JSON(201, message)
 }
 func GetMessage(c *gin.Context, repo *repository.Repository) {
@@ -360,7 +366,7 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		request.RecipientUserID = userID2
 	}
 
-	err = rabbit.Publish(request)
+	err = rabbit.PublishNotification(request)
 	if err != nil {
 		slog.Error("Notification can't publish", "error", err)
 	}

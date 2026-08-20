@@ -105,7 +105,6 @@ const (
 type TicketUpdateRequest struct {
 	Subject     string `json:"subject" binding:"max=255"`
 	Description string `json:"description" binding:"min=1,max=5000" `
-	Status      string `json:"status" `
 	Category    string `json:"category" `
 }
 type PasswordUpdateRequest struct {
