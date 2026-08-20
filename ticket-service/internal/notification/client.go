@@ -18,10 +18,16 @@ type NotificationServer struct {
 	HTTPClient *http.Client
 }
 type NotificationRequest struct {
-	TicketID int    `json:"ticket_id"`
-	UserID   int    `json:"user_id"`
-	Type     string `json:"type"`
-	Message  string `json:"message"`
+	EventID         string    `json:"event_id"`
+	TicketID        int       `json:"ticket_id"`
+	ActorUserID     int       `json:"actor_user_id"`
+	RecipientUserID int       `json:"recipient_user_id"`
+	Type            string    `json:"type"`
+	Message         string    `json:"message"`
+	OccurredAt      time.Time `json:"occurred_at"`
+}
+type NotificationError struct {
+	StatusCode int
 }
 
 func NewClient(baseURL string) *Client { //burada istegimiz url için client oluşturyoruz eğer sonra başka servis eklenirse kolay implement edilebilir
@@ -53,11 +59,16 @@ func (c *Client) CreateNotification(notification NotificationRequest) error {
 			log.Printf("error closing response body: %s", err)
 		}
 	}() //bağlantıyı ,isteği kapatıyoruz
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 { //200 ile 300 arasındaki kodlar genelde onaylandı anlamında taşır zaten biz birkaçını kullnadık .diğer kodlarda 500,404 gibi yi kapsayacak her biri için case yazmaya gerek yok
-		return fmt.Errorf(
-			"notification service returned status: %d",
-			resp.StatusCode,
-		)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return &NotificationError{
+			StatusCode: resp.StatusCode,
+		}
 	}
 	return nil
+}
+func (e *NotificationError) Error() string {
+	return fmt.Sprintf(
+		"notification service returned status: %d",
+		e.StatusCode,
+	)
 }

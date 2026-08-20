@@ -2,6 +2,8 @@ package main
 
 import (
 	"TMS/notification-service/internal/database"
+	"TMS/notification-service/internal/messaging"
+	"TMS/notification-service/internal/repository"
 	"TMS/notification-service/internal/routers"
 	"log/slog"
 	"os"
@@ -19,8 +21,23 @@ func main() {
 	if err != nil {
 		slog.Error("Sunucu hatası", "error", err.Error())
 	}
-	r := routers.SetupRouter(db)
+	repo := repository.NewRepository(db)
+	r := routers.SetupRouter(db, repo)
+
 	defer db.Close()
+	rabbit, err := messaging.NewRabbitMQ(os.Getenv("RABBITMQ_URL"))
+	if err != nil {
+		slog.Error("RabbitMQ connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer rabbit.Conn.Close()
+
+	go func() {
+		if err := rabbit.Consume(repo); err != nil {
+			slog.Error("RabbitMQ consumer stopped", "error", err)
+		}
+	}()
+
 	port := os.Getenv("PORT") //portumuzu alıyoruz
 
 	if port == "" {

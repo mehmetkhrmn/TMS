@@ -5,15 +5,19 @@ import (
 	"TMS/ticket-service/internal/models"
 	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
+func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messaging.RabbitMQ) {
 	var req models.RequestTicketMessage
 	id, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -87,19 +91,63 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 	} else {
 		mesType = "message_updated"
 	}
+
+	request := notification.NotificationRequest{}
+	eventID := uuid.New().String()
+	switch role {
+	case "representative":
+		userID2, err := repo.GetCustomerUserIDByTicketID(id) //alıcı olacak
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
+		err = repo.CreateActivityLog(tx, id, userID, "message_created", "message", "", "")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		request = notification.NotificationRequest{
+			TicketID:        id,
+			ActorUserID:     userID,
+			RecipientUserID: userID2,
+			Type:            mesType,
+			Message:         "Message created",
+			OccurredAt:      time.Now(),
+			EventID:         eventID,
+		}
+	case "customer":
+		userID2, err := repo.GetRepresentativeUserIDByTicketID(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "representative not assigned"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "server"})
+			return
+		}
+		err = repo.CreateActivityLog(tx, id, userID, "message_created", "message", "", "")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		request = notification.NotificationRequest{
+			TicketID:        id,
+			ActorUserID:     userID,
+			RecipientUserID: userID2,
+			Type:            mesType,
+			Message:         "Message created",
+			OccurredAt:      time.Now(),
+			EventID:         eventID,
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	err = client.CreateNotification(notification.NotificationRequest{
-		TicketID: id,
-		UserID:   userID,
-		Type:     mesType,
-		Message:  "Message created",
-	})
+	err = rabbit.Publish(request)
 	if err != nil {
-		slog.Error("Notification can't send", "error", err)
+		slog.Error("Notification can't publish", "error", err)
 	}
 	c.JSON(201, message)
 }
@@ -169,7 +217,7 @@ func GetMessage(c *gin.Context, repo *repository.Repository) {
 }
 
 // todo : eski rest fonsiyonalrını MQ ile uyumlu oalcak şekilde değiştir
-func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notification.Client, rabbit *messaging.RabbitMQ) {
+func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messaging.RabbitMQ) {
 	var req models.UpdateMessageRequest
 	tid, err := strconv.Atoi(c.Param("ticket_id"))
 	if err != nil {
@@ -197,6 +245,7 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 	}
 	userID := int(c.GetFloat64("user_id"))
 	role := c.GetString("role")
+	eventID := uuid.New().String()
 	switch role {
 	case "representative":
 		repID := int(c.GetFloat64("entity_id"))
@@ -282,18 +331,40 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, client *notifica
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	err = client.CreateNotification(notification.NotificationRequest{
-		TicketID: tid,
-		UserID:   userID,
-		Type:     "message_updated",
-		Message:  "Message updated",
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	request := notification.NotificationRequest{
+		TicketID:    tid,
+		ActorUserID: userID,
+		Type:        "message_updated",
+		Message:     "Message updated",
+		OccurredAt:  time.Now(),
+		EventID:     eventID,
 	}
-	c.JSON(http.StatusOK, message)
 
+	switch role {
+	case "representative":
+		// Bildirim customer'a gidecek
+		userID2, err := repo.GetCustomerUserIDByTicketID(tid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		request.RecipientUserID = userID2
+
+	case "customer":
+		// Bildirim representative'a gidecek
+		userID2, err := repo.GetRepresentativeUserIDByTicketID(tid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		request.RecipientUserID = userID2
+	}
+
+	err = rabbit.Publish(request)
+	if err != nil {
+		slog.Error("Notification can't publish", "error", err)
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "updated"})
 }
 func GetMessages(c *gin.Context, repo *repository.Repository) {
 	id, err := strconv.Atoi(c.Param("ticket_id"))

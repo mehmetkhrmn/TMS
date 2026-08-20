@@ -16,14 +16,7 @@ func (r *Repository) CreateTicket(tx *sql.Tx, ticket *models.Ticket) error {
 		return err
 	}
 	//scan ile diğer otomatik oluşan verileri aldık
-	userID, err := r.GetUserIDByCustID(ticket.CustomerID)
-	if err != nil {
-		return err
-	}
-	err = r.CreateActivityLog(tx, ticket.ID, userID, models.ActionTicketCreated, "ticket", "", "created")
-	if err != nil {
-		return err
-	}
+
 	return nil
 
 }
@@ -137,6 +130,7 @@ func (r *Repository) UpdateTicket(tx *sql.Tx, id int, ticket *models.Ticket) err
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -332,14 +326,7 @@ func (r *Repository) AssignRepresentative(tx *sql.Tx, ticketId int, representati
 	if err != nil {
 		return err
 	}
-	userID, err := r.GetUserIDByRepID(representativeId)
-	if err != nil {
-		return err
-	}
-	err = r.CreateActivityLog(tx, ticketId, userID, models.ActionAssignmentGranted, "assignment", "", "granted")
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 func (r *Repository) GetCustomerTickets(
@@ -440,14 +427,32 @@ func (r *Repository) UnAssignRepresentative(tx *sql.Tx, ticketId int, repId int)
 	if err != nil {
 		return err
 	}
-	userID, err := r.GetUserIDByRepID(repId)
-	if err != nil {
-		return err
-	}
-	err = r.CreateActivityLog(tx, ticketId, userID, models.ActionAssignmentRevoked, "assignment", "granted", "revoked")
-	if err != nil {
-		return err
-	}
+
 	return nil
 
+}
+func (r *Repository) GetCustomerUserIDByTicketID(ticketID int) (int, error) {
+	var userID int
+
+	query := "SELECT au.id FROM tickets t JOIN auth_users au ON au.entity_id = t.customer_id WHERE t.id = $1 AND au.role = 'customer'"
+
+	err := r.Db.QueryRow(query, ticketID).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return userID, nil
+}
+
+func (r *Repository) GetRepresentativeUserIDByTicketID(ticketID int) (int, error) {
+	var userID int
+
+	query := "SELECT au.id FROM ticket_assignments ta JOIN auth_users au ON au.entity_id = ta.representative_id WHERE ta.ticket_id = $1 AND au.role = 'representative'"
+
+	err := r.Db.QueryRow(query, ticketID).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return userID, nil
 }

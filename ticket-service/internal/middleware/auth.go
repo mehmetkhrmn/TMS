@@ -59,3 +59,14 @@ func AuthMiddleware() gin.HandlerFunc { //Bu fonsiyon loginde oluşturduğumjuz 
 		c.Next() //devam et
 	}
 }
+func LimitBodySize() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(
+			c.Writer,
+			c.Request.Body,
+			1<<20, //max 1mb
+		)
+
+		c.Next()
+	}
+}

@@ -14,21 +14,21 @@ type Ticket struct {
 }
 type Representative struct {
 	ID        int       `json:"id"`
-	Name      string    `json:"name" binding:"required"`
+	Name      string    `json:"name" binding:"max=255"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type RequestTicketMessage struct {
-	Message string `json:"message" validate:"required,min=1,max=5000"`
+	Message string `json:"message" binding:"required,min=1,max=5000"`
 }
 type UpdateMessageRequest struct {
-	Message string `json:"message" validate:"required,min=1,max=5000"`
+	Message string `json:"message" binding:"required,min=1,max=5000"`
 }
 type TicketMessage struct {
 	ID        int       `json:"id"`
 	TicketID  int       `json:"ticket_id"`
 	UserID    int       `json:"user_id"`
-	Message   string    `json:"message" binding:"required" validate:"required,min=1,max=5000"`
+	Message   string    `json:"message" binding:"required" binding:"required,min=1,max=5000"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -49,23 +49,23 @@ type AuthUser struct {
 	EntityId     int       `json:"entity_id" binding:"required"`
 }
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,min=5,max=255"`
+	Password string `json:"password" binding:"required,min=8,max=255"`
 }
 type RegisterRequestRepresentative struct {
 	Name     string `json:"name" binding:"required"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,min=5,max=255"`
+	Password string `json:"password" binding:"required,min=8,max=255"`
 }
 type RegisterRequestCustomer struct {
-	Name     string `json:"name" binding:"required"`
+	Name     string `json:"name" binding:"required,min=1,max=255"`
 	Email    string `json:"email" binding:"required,email"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,min=5,max=255"`
+	Password string `json:"password" binding:"required,min=8,max=255"`
 }
 type CreateTicketRequest struct {
-	Subject     string `json:"subject" binding:"required"`
-	Description string `json:"description" binding:"required"`
+	Subject     string `json:"subject"  binding:"required,max=255"`
+	Description string `json:"description" binding:"required,min=1,max=5000"`
 	Category    string `json:"category" binding:"required"`
 }
 
@@ -103,8 +103,8 @@ const (
 )
 
 type TicketUpdateRequest struct {
-	Subject     string `json:"subject" `
-	Description string `json:"description" `
+	Subject     string `json:"subject" binding:"max=255"`
+	Description string `json:"description" binding:"min=1,max=5000" `
 	Status      string `json:"status" `
 	Category    string `json:"category" `
 }

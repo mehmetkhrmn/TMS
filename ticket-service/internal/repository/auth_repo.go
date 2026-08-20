@@ -11,6 +11,9 @@ func (r *Repository) GetAuthUserByUsername(username string) (*models.AuthUser, e
 	err := r.Db.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &authUser, nil
@@ -21,6 +24,9 @@ func (r *Repository) GetAuthUserByUsernameTx(tx *sql.Tx, username string) (*mode
 	err := tx.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &authUser, nil
@@ -58,12 +64,12 @@ func (r *Repository) UpdatePassword(userID int, passwordHash string) error {
 	}
 	return nil
 }
-func (r *Repository) IsMailAvailable(tx *sql.Tx, mail string) (bool, error) {
+func (r *Repository) IsMailAvailable(tx *sql.Tx, email string) (bool, error) {
 	var exists bool
 
-	query := "SELECT EXISTS ( SELECT 1 FROM auth_users WHERE mail = $1)"
+	query := "SELECT EXISTS ( SELECT 1 FROM customers WHERE email = $1)"
 
-	err := tx.QueryRow(query, mail).Scan(&exists)
+	err := tx.QueryRow(query, email).Scan(&exists)
 	if err != nil {
 		return false, err
 	}

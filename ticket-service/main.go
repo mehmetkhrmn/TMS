@@ -44,6 +44,7 @@ func main() {
 	db, err := database.Connect()
 	if err != nil {
 		slog.Error("Sunucu hatası", "error", err.Error())
+		return
 	}
 
 	defer func() {

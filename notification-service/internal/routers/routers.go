@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(db *sql.DB) *gin.Engine {
+func SetupRouter(db *sql.DB,repo *repository.Repository) *gin.Engine {
 	router := gin.Default()
 	notifications := router.Group("/notifications")
-	repo := repository.NewRepository(db)
+
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{

@@ -4,10 +4,7 @@ import (
 	handlers2 "TMS/ticket-service/internal/handlers"
 	"TMS/ticket-service/internal/messaging"
 	middleware2 "TMS/ticket-service/internal/middleware"
-	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
-	"os"
-
 	"database/sql"
 
 	"github.com/gin-gonic/gin"
@@ -18,10 +15,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	router := gin.Default()
 	gin.SetMode(gin.DebugMode)
 	repo := repository.NewRepository(db)
-
-	notificationClient := notification.NewClient(
-		os.Getenv("NOTIFICATION_SERVICE_URL"),
-	)
+	router.Use(middleware2.LimitBodySize())
 
 	authorized := router.Group("/") //route için alt grup oluşturuyorum
 	authorized.Use(middleware2.AuthMiddleware())
@@ -40,19 +34,19 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	})
 	admin.POST("/tickets/:ticket_id/representatives/:representative_id",
 		func(c *gin.Context) {
-			handlers2.AssignRepresentative(c, repo)
+			handlers2.AssignRepresentative(rabbit, c, repo)
 		},
 	)
 	admin.DELETE("/tickets/:ticket_id/representatives/:representative_id",
 		func(c *gin.Context) {
-			handlers2.UnassignRepresentative(c, repo)
+			handlers2.UnassignRepresentative(rabbit, c, repo)
 		})
 	authorized.PUT("tickets/:ticket_id/messages/:message_id", func(context *gin.Context) {
-		handlers2.UpdateMessage(context, repo, notificationClient, rabbit)
+		handlers2.UpdateMessage(context, repo, rabbit)
 	})
 
 	authorized.POST("/tickets/:ticket_id/messages", func(context *gin.Context) {
-		handlers2.CreateMessage(context, repo, notificationClient, rabbit)
+		handlers2.CreateMessage(context, repo, rabbit)
 	})
 
 	authorized.GET("/tickets/:ticket_id/messages", func(context *gin.Context) {
@@ -67,7 +61,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	})
 
 	representative.PUT("/tickets/:ticket_id", func(c *gin.Context) {
-		handlers2.UpdateTicket(c, repo, notificationClient, rabbit)
+		handlers2.UpdateTicket(c, repo, rabbit)
 	})
 
 	//statusa göre ticket döndür
@@ -82,7 +76,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 
 	//set status
 	representative.PATCH("/tickets/:ticket_id", func(context *gin.Context) {
-		handlers2.SetTicketStatus(context, repo, notificationClient, rabbit)
+		handlers2.SetTicketStatus(context, repo, rabbit)
 	})
 
 	//bütün ticketleri almak için
@@ -92,7 +86,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers2.CreateTicket(context, repo, notificationClient, rabbit)
+		handlers2.CreateTicket(context, repo, rabbit)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {
@@ -103,11 +97,11 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 		handlers2.Register(context, repo)
 	})
 
-	representative.GET("/customers/:customer_id", func(context *gin.Context) {
+	authorized.GET("/customers/:customer_id", func(context *gin.Context) {
 		handlers2.GetCustomer(context, repo)
 	})
 
-	representative.PUT("/customers/:customers_id", func(context *gin.Context) {
+	authorized.PUT("/customers/:customers_id", func(context *gin.Context) {
 		handlers2.UpdateCustomer(context, repo)
 	})
 

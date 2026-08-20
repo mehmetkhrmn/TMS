@@ -26,9 +26,9 @@ func CreateCustomerTx(customer *models.Customer, c *gin.Context, repo *repositor
 
 }
 func GetCustomers(c *gin.Context, repo *repository.Repository) {
-	customers, error := repo.GetCustomers()
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	customers, err := repo.GetCustomers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, customers)
@@ -40,9 +40,30 @@ func GetCustomer(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is invalid" + err.Error()})
 		return
 	}
-	customer, error := repo.GetCustomer(id)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	role := c.GetString("role")
+	switch role {
+	case "representative":
+		repId := int(c.GetFloat64("entity_id"))
+		assigned := repo.IsCustomerAssignedToRepresentative(id, repId)
+		if !assigned {
+			c.JSON(http.StatusForbidden, gin.H{"error": "customer is not assigned to this representative"})
+			return
+		}
+	case "customer":
+		custId := int(c.GetFloat64("entity_id"))
+		if custId != id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "can't access this customer with this customer id"})
+			return
+		}
+	case "admin":
+	default:
+		c.JSON(http.StatusForbidden, gin.H{"error": "can't access this customer with this customer id"})
+		return
+	}
+
+	customer, err := repo.GetCustomer(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, customer)
@@ -53,6 +74,24 @@ func UpdateCustomer(c *gin.Context, repo *repository.Repository) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is invalid" + err.Error()})
 		return
+	}
+	role := c.GetString("role")
+	switch role {
+	case "representative":
+		repId := int(c.GetFloat64("entity_id"))
+		assigned := repo.IsCustomerAssignedToRepresentative(id, repId)
+		if !assigned {
+			c.JSON(http.StatusForbidden, gin.H{"error": "customer is not assigned to this representative"})
+			return
+		}
+	case "admin":
+	case "customer":
+		custId := int(c.GetFloat64("entity_id"))
+		if custId != id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "can't access this customer with this customer id"})
+			return
+		}
+	default:
 	}
 	var customer models.Customer
 	if err := c.ShouldBind(&customer); err != nil {

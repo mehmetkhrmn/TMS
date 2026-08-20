@@ -12,10 +12,7 @@ func (r *Repository) CreateMessage(tx *sql.Tx, message *models.TicketMessage) er
 	if err != nil {
 		return err
 	}
-	err = r.CreateActivityLog(tx, message.TicketID, message.UserID, models.ActionMessageCreated, "message", "", "created")
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -37,7 +34,6 @@ func (r *Repository) GetMessage(messageId int) (*models.TicketMessage, error) {
 		&message.TicketID,
 		&message.CreatedAt,
 		&message.UpdatedAt)
-
 
 	if err != nil {
 		return nil, err

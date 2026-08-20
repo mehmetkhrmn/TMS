@@ -57,3 +57,17 @@ func (r *RabbitMQ) PublishNotification(notification notification.NotificationReq
 	}
 	return nil
 }
+func (r *RabbitMQ) Publish(event notification.NotificationRequest) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	return r.Channel.Publish("",
+		"notifcations",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		})
+}

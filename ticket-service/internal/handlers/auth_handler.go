@@ -3,7 +3,6 @@ package handlers
 import (
 	"TMS/ticket-service/internal/models"
 	"TMS/ticket-service/internal/repository"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -41,9 +40,7 @@ func Login(c *gin.Context, repo *repository.Repository) {
 		"exp":       time.Now().Add(24 * time.Hour).Unix(),
 		"iat":       time.Now().Unix(),
 	})
-	if os.Getenv("JWT_SECRET") == "" {
-		log.Fatal("JWT_SECRET environment variable not set")
-	}
+	//zaten jwt secret mainde kontrol ediliyor
 	secretKey := []byte(os.Getenv("JWT_SECRET"))
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
@@ -98,6 +95,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "username already registered" + user.Username,
 			})
+			return
 		}
 
 		hash, err := bcrypt.GenerateFromPassword(
