@@ -1,6 +1,5 @@
-<<<<<<< Updated upstream
 ticket-service/.env
 notification-service/.env
-.test.http
-
+.idea/
+.idea_backup/
 
