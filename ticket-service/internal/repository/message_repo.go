@@ -8,7 +8,7 @@ import (
 
 func (r *Repository) CreateMessage(tx *sql.Tx, message *models.TicketMessage) error {
 	query := "INSERT INTO ticket_messages(message,user_id,ticket_id) values($1,$2,$3) RETURNING id, created_at,updated_at"
-	err := r.Db.QueryRow(query, message.Message, message.UserID, message.TicketID).Scan(&message.ID, &message.CreatedAt, &message.UpdatedAt)
+	err := tx.QueryRow(query, message.Message, message.UserID, message.TicketID).Scan(&message.ID, &message.CreatedAt, &message.UpdatedAt)
 	if err != nil {
 		return err
 	}

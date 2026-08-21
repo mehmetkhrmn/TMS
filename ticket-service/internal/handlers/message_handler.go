@@ -6,6 +6,7 @@ import (
 	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -76,10 +77,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		_ = tx.Rollback()
 
 	}()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 
-	}
 	err = repo.CreateMessage(tx, &message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
@@ -119,7 +117,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 	case "customer":
 		userID2, err := repo.GetRepresentativeUserIDByTicketID(id)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "representative not assigned"})
 				return
 			}
@@ -209,10 +207,10 @@ func GetMessage(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden message"})
 		return
 	}
-	message, error := repo.GetMessage(mid)
+	message, err := repo.GetMessage(mid)
 	fmt.Print(message)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if message == nil {
@@ -236,10 +234,6 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		return
 	}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
-	}
 	ok, err := repo.IsMessageBelongsToTicket(mid, tid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
@@ -412,9 +406,9 @@ func GetMessages(c *gin.Context, repo *repository.Repository) {
 		return
 	}
 
-	messages, error := repo.GetMessages(id)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	messages, err := repo.GetMessages(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, messages)

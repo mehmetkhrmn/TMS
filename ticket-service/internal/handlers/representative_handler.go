@@ -9,35 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateRepresentative(representative *models.Representative, c *gin.Context, repo *repository.Repository) {
-	err := repo.CreateRepresentative(representative)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(201, representative)
-
-}
-func CreateRepresentativeTx(representative *models.Representative, c *gin.Context, repo *repository.Repository) {
-	err := repo.CreateRepresentative(representative)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(201, representative)
-
-}
-
 func GetRepresentative(c *gin.Context, repo *repository.Repository) {
-	idString := (c.Param("representatives_id"))
+	idString := c.Param("representatives_id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id is invalid" + err.Error()})
 		return
 	}
-	representative, error := repo.GetRepresentative(id)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	representative, err := repo.GetRepresentative(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, representative)
@@ -51,7 +32,7 @@ func GetAllRepresentatives(c *gin.Context, repo *repository.Repository) {
 	c.JSON(200, representatives)
 }
 func UpdateRepresentative(c *gin.Context, repo *repository.Repository) {
-	idString := (c.Param("representatives_id"))
+	idString := c.Param("representatives_id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id is invalid" + err.Error()})

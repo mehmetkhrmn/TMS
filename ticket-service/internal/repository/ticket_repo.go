@@ -174,10 +174,10 @@ func (r *Repository) GetAllTickets(limit int, offset int) ([]models.Ticket, erro
 
 	return tickets, nil
 }
-func (r *Repository) GetCustomerTicket(ticket_id int, cust_id int) (*models.Ticket, error) {
+func (r *Repository) GetCustomerTicket(ticketId int, custId int) (*models.Ticket, error) {
 	var ticket models.Ticket
-	query := "SELECT ticket_id,subject,description,created_at,updated_at,status,category FROM tickets WHERE tickets.customer_id=$1 and tickets.id=$2"
-	err := r.Db.QueryRow(query, cust_id, ticket_id).Scan(
+	query := "SELECT id,subject,description,created_at,updated_at,status,category FROM tickets WHERE tickets.customer_id=$1 and tickets.id=$2"
+	err := r.Db.QueryRow(query, custId, ticketId).Scan(
 		&ticket.ID,
 		&ticket.Subject,
 		&ticket.Description,
@@ -191,10 +191,10 @@ func (r *Repository) GetCustomerTicket(ticket_id int, cust_id int) (*models.Tick
 	}
 	return &ticket, nil
 }
-func (r *Repository) GetAdminTicket(ticket_id int) (*models.Ticket, error) {
+func (r *Repository) GetAdminTicket(ticketId int) (*models.Ticket, error) {
 	var ticket models.Ticket
 	query := "SELECT id,subject,description,created_at,updated_at,status,customer_id,category FROM tickets WHERE tickets.id=$1"
-	row := r.Db.QueryRow(query, ticket_id)
+	row := r.Db.QueryRow(query, ticketId)
 	err := row.Scan(
 		&ticket.ID,
 		&ticket.Subject,
@@ -293,19 +293,19 @@ func (r *Repository) GetTicketHistory(ticketId int) ([]models.ActivityLog, error
 	}()
 	var logs []models.ActivityLog
 	for rows.Next() {
-		var log models.ActivityLog
-		if err := rows.Scan(&log.ID,
-			&log.TicketID,
-			&log.UserID,
-			&log.Action,
-			&log.FieldName,
-			&log.OldValue,
-			&log.NewValue,
-			&log.CreatedAt,
+		var aLog models.ActivityLog
+		if err := rows.Scan(&aLog.ID,
+			&aLog.TicketID,
+			&aLog.UserID,
+			&aLog.Action,
+			&aLog.FieldName,
+			&aLog.OldValue,
+			&aLog.NewValue,
+			&aLog.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
-		logs = append(logs, log)
+		logs = append(logs, aLog)
 	}
 	return logs, nil
 }
@@ -321,7 +321,7 @@ func (r *Repository) IsRepresentativeAssigned(ticketId int, representativeId int
 }
 func (r *Repository) AssignRepresentative(tx *sql.Tx, ticketId int, representativeId int) error {
 	query := "INSERT INTO ticket_assignments(ticket_id,representative_id) VALUES ($1,$2);"
-	_, err := r.Db.Exec(query, ticketId, representativeId)
+	_, err := tx.Exec(query, ticketId, representativeId)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (r *Repository) AssignRepresentative(tx *sql.Tx, ticketId int, representati
 	return nil
 }
 func (r *Repository) GetCustomerTickets(
-	cust_id int,
+	custId int,
 	limit int,
 	offset int,
 ) ([]models.Ticket, error) {
@@ -338,7 +338,7 @@ func (r *Repository) GetCustomerTickets(
 
 	query := "SELECT id, subject, description, created_at, updated_at, status, customer_id, category FROM tickets WHERE customer_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
 
-	rows, err := r.Db.Query(query, cust_id, limit, offset)
+	rows, err := r.Db.Query(query, custId, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -374,47 +374,10 @@ func (r *Repository) GetCustomerTickets(
 
 	return tickets, nil
 }
-func (r *Repository) GetTicketsByCategory(category string) ([]models.Ticket, error) {
-	var tickets []models.Ticket
-	query := "UPDATE tickets SET subject=COALESCE(NULLIF($1,''),subject),description=COALESCE(NULLIF($2,''),description),status=COALESCE(NULLIF($3,''),status),category=COALESCE(NULLIF($4,''),category),updated_at=NOW() WHERE id=$5 RETURNING created_at,updated_at"
-	rows, err := r.Db.Query(query, category)
-	if err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Printf("Error closing rows: %v", err)
-		}
-	}()
-	for rows.Next() {
-		var ticket models.Ticket
-		if err := rows.Scan(
-			&ticket.ID,
-			&ticket.Subject,
-			&ticket.Description,
-			&ticket.CreatedAt,
-			&ticket.UpdatedAt,
-			&ticket.Status,
-			&ticket.CustomerID,
-			&ticket.Category,
-		); err != nil {
-			return nil, err
-		}
-		tickets = append(tickets, ticket)
 
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-	return tickets, nil
-}
 func (r *Repository) UnAssignRepresentative(tx *sql.Tx, ticketId int, repId int) error {
 	query := "DELETE FROM ticket_assignments WHERE ticket_id=$1 AND representative_id=$2"
-	res, err := r.Db.Exec(query, ticketId, repId)
+	res, err := tx.Exec(query, ticketId, repId)
 	if err != nil {
 		return err
 	}

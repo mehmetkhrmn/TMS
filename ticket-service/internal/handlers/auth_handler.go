@@ -55,9 +55,9 @@ func Login(c *gin.Context, repo *repository.Repository) {
 
 }
 func Register(c *gin.Context, repo *repository.Repository) {
-	tx, error := repo.Db.Begin()
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	tx, err := repo.Db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer func() {
@@ -82,7 +82,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 		}
 		if user != nil {
 			c.JSON(http.StatusConflict, gin.H{
-				"error": "username already exists" + user.Username,
+				"error": "username already exists",
 			})
 			return
 		}
@@ -93,7 +93,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 		}
 		if avab == false {
 			c.JSON(http.StatusConflict, gin.H{
-				"error": "username already registered" + user.Username,
+				"error": "username already registered",
 			})
 			return
 		}

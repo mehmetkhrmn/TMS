@@ -14,14 +14,7 @@ func (r *Repository) CreateRepresentativeTx(tx *sql.Tx, rep *models.Representati
 	}
 	return nil
 }
-func (r *Repository) CreateRepresentative(rep *models.Representative) error {
-	query := "INSERT INTO representatives(name) values($1) RETURNING id, created_at"
-	err := r.Db.QueryRow(query, rep.Name).Scan(&rep.ID, &rep.CreatedAt)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+
 func (r *Repository) GetAllRepresentatives() ([]models.Representative, error) {
 	var representatives []models.Representative
 	query := "SELECT id,name,created_at,updated_at FROM representatives"

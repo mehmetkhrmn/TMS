@@ -86,7 +86,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers2.CreateTicket(context, repo, rabbit)
+		handlers2.CreateTicket(context, repo)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {

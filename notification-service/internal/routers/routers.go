@@ -3,15 +3,13 @@ package routers
 import (
 	"TMS/notification-service/internal/handlers"
 	"TMS/notification-service/internal/repository"
-	"database/sql"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(db *sql.DB,repo *repository.Repository) *gin.Engine {
+func SetupRouter(repo *repository.Repository) *gin.Engine {
 	router := gin.Default()
 	notifications := router.Group("/notifications")
-
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -19,9 +17,6 @@ func SetupRouter(db *sql.DB,repo *repository.Repository) *gin.Engine {
 		})
 	})
 
-	notifications.POST("", func(context *gin.Context) {
-		handlers.CreateNotification(context, repo)
-	})
 	notifications.GET("", func(context *gin.Context) {
 		handlers.GetNotifications(context, repo)
 	})

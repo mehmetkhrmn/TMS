@@ -58,7 +58,7 @@ func NewRabbitMQ(url string) (*RabbitMQ, error) {
 
 	channel, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
@@ -71,8 +71,8 @@ func NewRabbitMQ(url string) (*RabbitMQ, error) {
 		nil,
 	)
 	if err != nil {
-		channel.Close()
-		conn.Close()
+		_ = channel.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 

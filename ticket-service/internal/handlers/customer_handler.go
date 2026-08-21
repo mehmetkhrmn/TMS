@@ -9,22 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateCustomer(customer *models.Customer, c *gin.Context, repo *repository.Repository) {
-	err := repo.CreateCustomer(customer)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	}
-	c.JSON(201, customer)
-
-}
-func CreateCustomerTx(customer *models.Customer, c *gin.Context, repo *repository.Repository) {
-	err := repo.CreateCustomer(customer)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	}
-	c.JSON(201, customer)
-
-}
 func GetCustomers(c *gin.Context, repo *repository.Repository) {
 	customers, err := repo.GetCustomers()
 	if err != nil {

@@ -3,6 +3,7 @@ package repository
 import (
 	"TMS/ticket-service/internal/models"
 	"database/sql"
+	"errors"
 )
 
 func (r *Repository) GetAuthUserByUsername(username string) (*models.AuthUser, error) {
@@ -11,7 +12,7 @@ func (r *Repository) GetAuthUserByUsername(username string) (*models.AuthUser, e
 	err := r.Db.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -24,7 +25,7 @@ func (r *Repository) GetAuthUserByUsernameTx(tx *sql.Tx, username string) (*mode
 	err := tx.QueryRow(query, username).Scan(&authUser.ID, &authUser.Username, &authUser.PasswordHash, &authUser.Role, &authUser.EntityId)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

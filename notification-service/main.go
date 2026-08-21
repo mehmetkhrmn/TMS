@@ -22,15 +22,19 @@ func main() {
 		slog.Error("Sunucu hatası", "error", err.Error())
 	}
 	repo := repository.NewRepository(db)
-	r := routers.SetupRouter(db, repo)
+	r := routers.SetupRouter(repo)
 
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 	rabbit, err := messaging.NewRabbitMQ(os.Getenv("RABBITMQ_URL"))
 	if err != nil {
 		slog.Error("RabbitMQ connection failed", "error", err)
 		os.Exit(1)
 	}
-	defer rabbit.Conn.Close()
+	defer func() {
+		_ = rabbit.Conn.Close()
+	}()
 
 	go func() {
 		if err := rabbit.Consume(repo); err != nil {

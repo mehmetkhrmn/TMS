@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging.RabbitMQ) { //repositorydeki structı gönderdik bağlantı kurudk db ile
+func CreateTicket(c *gin.Context, repo *repository.Repository) { //repositorydeki structı gönderdik bağlantı kurudk db ile
 	var req models.CreateTicketRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind ticket" + err.Error()})
@@ -31,9 +31,9 @@ func CreateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 		CustomerID:  custId,
 		Category:    req.Category,
 	}
-	tx, error := repo.Db.Begin()
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	tx, err := repo.Db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer func() {
@@ -45,7 +45,7 @@ func CreateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant create ticket" + err.Error()})
 		return
 	}
-	err := repo.CreateActivityLog(tx, ticket.ID, userId, "ticket_created", "ticket", "", "")
+	err = repo.CreateActivityLog(tx, ticket.ID, userId, "ticket_created", "ticket", "", "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -219,8 +219,8 @@ func GetTicketHistory(c *gin.Context, repo *repository.Repository) {
 }
 
 func GetTicket(c *gin.Context, repo *repository.Repository) {
-	idString := (c.Param("ticket_id")) //url den id yi aldık
-	id, err := strconv.Atoi(idString)  //int ye çevir
+	idString := c.Param("ticket_id")  //url den id yi aldık
+	id, err := strconv.Atoi(idString) //int ye çevir
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_id is invalid" + err.Error()})
 		return
@@ -365,9 +365,9 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden ticket"})
 		return
 	}
-	oldTicket, error := repo.GetTicket(id)
-	if error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+	oldTicket, err := repo.GetTicket(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	var req models.TicketUpdateRequest
@@ -435,23 +435,6 @@ func UpdateTicket(c *gin.Context, repo *repository.Repository, rabbit *messaging
 	c.JSON(200, ticket)
 }
 
-func GetAdminTickets(ticket_id int, c *gin.Context, repo *repository.Repository) {
-	tickets, err := repo.GetAdminTicket(ticket_id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
-		return
-	}
-	c.JSON(http.StatusOK, tickets)
-}
-
-func GetCustomerTicket(ticket_id int, customer_id int, c *gin.Context, repo *repository.Repository) {
-	ticket, err := repo.GetCustomerTicket(ticket_id, customer_id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "repo"})
-		return
-	}
-	c.JSON(http.StatusOK, ticket)
-}
 func AssignRepresentative(rabbit *messaging.RabbitMQ, c *gin.Context, repo *repository.Repository) {
 	repID, err := strconv.Atoi(c.Param("representative_id"))
 	if err != nil {
@@ -560,7 +543,7 @@ func UnassignRepresentative(rabbit *messaging.RabbitMQ, c *gin.Context, repo *re
 
 	eventID := uuid.New().String()
 
-	notification := notification.NotificationRequest{
+	notif := notification.NotificationRequest{
 		EventID:         eventID,
 		TicketID:        ticketID,
 		RecipientUserID: userId,
@@ -569,7 +552,7 @@ func UnassignRepresentative(rabbit *messaging.RabbitMQ, c *gin.Context, repo *re
 		OccurredAt:      time.Now(),
 	}
 
-	err = rabbit.PublishNotification(notification)
+	err = rabbit.PublishNotification(notif)
 	if err != nil {
 		slog.Error("Notification can't publish", "error", err)
 	}
