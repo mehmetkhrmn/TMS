@@ -1,42 +1,14 @@
 package handlers
 
 import (
-	"TMS/notification-service/internal/models"
 	"TMS/notification-service/internal/repository"
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateNotification(c *gin.Context, repo *repository.Repository) {
-	var notification models.Notification
-	err := c.ShouldBindJSON(&notification)
-	if err != nil {
-		log.Println("1")
-		log.Println(err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body" + err.Error()})
-		return
-	}
-
-	if !models.IsValidNotificationType(notification.Type) {
-		log.Println("2")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification type"})
-		return
-	}
-
-	err = repo.CreateNotification(&notification)
-	if err != nil {
-		log.Println("3")
-		log.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
-	}
-	c.JSON(http.StatusCreated, notification)
-
-}
 func GetNotification(c *gin.Context, repo *repository.Repository) {
 	notifID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

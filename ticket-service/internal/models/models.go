@@ -28,7 +28,7 @@ type TicketMessage struct {
 	ID        int       `json:"id"`
 	TicketID  int       `json:"ticket_id"`
 	UserID    int       `json:"user_id"`
-	Message   string    `json:"message" binding:"required" binding:"required,min=1,max=5000"`
+	Message   string    `json:"message" binding:"required,min=1,max=5000"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -86,13 +86,14 @@ type AssignTicketRequest struct {
 }
 
 const (
-	ActionTicketCreated     = "ticket_created"
-	ActionTicketUpdated     = "ticket_updated"
-	ActionStatusChanged     = "status_changed"
-	ActionMessageCreated    = "message_created"
-	ActionMessageUpdated    = "message_updated"
-	ActionAssignmentRevoked = "assignment_revoked"
-	ActionAssignmentGranted = "assignment_granted"
+	ActionTicketCreated  = "ticket_created"
+	ActionTicketUpdated  = "ticket_updated"
+	ActionStatusChanged  = "status_changed"
+	ActionMessageCreated = "message_created"
+	ActionMessageUpdated = "message_updated"
+	ActionTicketRevoked  = "tícket_revoked"
+	ActionTicketGranted  = "ticket_granted"
+	ActionMessageReplied = "message_replied"
 )
 const (
 	CategoryTechnical = "technical"
@@ -103,11 +104,20 @@ const (
 )
 
 type TicketUpdateRequest struct {
-	Subject     string `json:"subject" binding:"max=255"`
-	Description string `json:"description" binding:"min=1,max=5000" `
-	Category    string `json:"category" `
+	Subject     string `json:"subject" binding:"omitempty,max=255"`
+	Description string `json:"description" binding:"omitempty,max=5000"`
+	Category    string `json:"category" binding:"omitempty"`
 }
 type PasswordUpdateRequest struct {
 	OldPassword string `json:"old_password" `
 	NewPassword string `json:"new_password" `
+}
+type NotificationRequest struct {
+	EventID         string    `json:"event_id"`
+	TicketID        int       `json:"ticket_id"`
+	ActorUserID     int       `json:"actor_user_id"`
+	RecipientUserID int       `json:"recipient_user_id"`
+	Type            string    `json:"type"`
+	Message         string    `json:"message"`
+	OccurredAt      time.Time `json:"occurred_at"`
 }

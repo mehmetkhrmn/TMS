@@ -3,6 +3,7 @@ package repository
 import (
 	"TMS/notification-service/internal/models"
 	"database/sql"
+	"errors"
 )
 
 func (r *Repository) CreateNotification(notification *models.Notification) error {
@@ -21,6 +22,9 @@ func (r *Repository) CreateNotification(notification *models.Notification) error
 		&notification.CreatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -32,6 +36,9 @@ func (r *Repository) GetAllNotifications() ([]models.Notification, error) {
 		return nil, err
 	}
 	var notifications []models.Notification
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var notification models.Notification
 		if err := rows.Scan(
@@ -45,7 +52,7 @@ func (r *Repository) GetAllNotifications() ([]models.Notification, error) {
 			&notification.OccurredAt,
 			&notification.EventID,
 		); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				return []models.Notification{}, nil
 			}
 			return nil, err
@@ -57,7 +64,7 @@ func (r *Repository) GetAllNotifications() ([]models.Notification, error) {
 func (r *Repository) GetNotification(notificationId int) (*models.Notification, error) {
 	query := "SELECT id,ticket_id,actor_user_id,recipient_user_id,type,message,created_at,occurred_at,event_id FROM notifications WHERE id = $1"
 	var notification models.Notification
-	err := r.Db.QueryRow(query, notificationId).Scan(&notification.ID, &notification.TicketID, &notification.ActorUserID, notification.RecipientUserID, &notification.Type, &notification.Message, &notification.CreatedAt, &notification.OccurredAt, &notification.EventID)
+	err := r.Db.QueryRow(query, notificationId).Scan(&notification.ID, &notification.TicketID, &notification.ActorUserID, &notification.RecipientUserID, &notification.Type, &notification.Message, &notification.CreatedAt, &notification.OccurredAt, &notification.EventID)
 	if err != nil {
 		return nil, err
 	}

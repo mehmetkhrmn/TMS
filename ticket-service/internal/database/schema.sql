@@ -1,3 +1,7 @@
+create type activity_action as enum ('ticket_created', 'ticket_updated', 'status_changed', 'answer_created', 'answer_updated');
+
+
+
 create table representatives
 (
     id         serial
@@ -7,8 +11,6 @@ create table representatives
     updated_at timestamp default CURRENT_TIMESTAMP
 );
 
-alter table representatives
-    owner to postgres;
 
 create table customers
 (
@@ -23,8 +25,7 @@ create table customers
         unique (id, email)
 );
 
-alter table customers
-    owner to postgres;
+
 
 create table tickets
 (
@@ -48,8 +49,6 @@ create table tickets
                    ((ARRAY ['technical'::character varying, 'billing'::character varying, 'account'::character varying, 'bug'::character varying, 'other'::character varying])::text[]))
 );
 
-alter table tickets
-    owner to postgres;
 
 create table auth_users
 (
@@ -61,14 +60,13 @@ create table auth_users
     role          varchar(20)                         not null
         constraint auth_users_role_check
             check ((role)::text = ANY
-        ((ARRAY ['admin'::character varying, 'representative'::character varying, 'customer'::character varying])::text[])),
+                   ((ARRAY ['admin'::character varying, 'representative'::character varying, 'customer'::character varying])::text[])),
     created_at    timestamp default CURRENT_TIMESTAMP not null,
     updated_at    timestamp default CURRENT_TIMESTAMP not null,
     entity_id     integer
 );
 
-alter table auth_users
-    owner to postgres;
+
 
 create table activity_logs
 (
@@ -87,8 +85,7 @@ create table activity_logs
     created_at timestamp default CURRENT_TIMESTAMP not null
 );
 
-alter table activity_logs
-    owner to postgres;
+
 
 create table ticket_assignments
 (
@@ -104,8 +101,7 @@ create table ticket_assignments
     unique (ticket_id, representative_id)
 );
 
-alter table ticket_assignments
-    owner to postgres;
+
 
 create table ticket_messages
 (
@@ -115,16 +111,10 @@ create table ticket_messages
         references tickets
             on delete cascade,
     user_id    integer not null
-        references auth_users
-            on delete cascade
         constraint fk_ticket_messages_user
             references auth_users
             on delete cascade,
-    message    text    not null,
+    message    text not null,
     created_at timestamp with time zone default CURRENT_TIMESTAMP,
     updated_at timestamp with time zone default CURRENT_TIMESTAMP
 );
-
-alter table ticket_messages
-    owner to postgres;
-

@@ -79,12 +79,12 @@ func (r *Repository) GetUserIDByCustID(custId int) (int, error) {
 
 	return userID, nil
 }
-func (r *Repository) IsCustomerAssignedToRepresentative(customerID int, representativeID int) bool {
+func (r *Repository) IsCustomerAssignedToRepresentative(customerID int, representativeID int) (bool, error) {
 	query := "SELECT EXISTS (SELECT 1 FROM ticket_assignments a JOIN tickets t ON t.id = a.ticket_id WHERE a.representative_id = $1 AND t.customer_id = $2);"
 	var assigned bool
 	err := r.Db.QueryRow(query, representativeID, customerID).Scan(&assigned)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return assigned
+	return assigned, nil
 }

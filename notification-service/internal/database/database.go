@@ -4,17 +4,13 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func Connect() (*sql.DB, error) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-		os.Exit(1)
-	}
+
 	connStr := "host=" + os.Getenv("DB_HOST") +
 		" port=" + os.Getenv("DB_PORT") +
 		" user=" + os.Getenv("DB_USER") +
@@ -22,14 +18,21 @@ func Connect() (*sql.DB, error) {
 		" dbname=" + os.Getenv("DB_NAME") +
 		" sslmode=" + os.Getenv("DB_SSLMODE")
 
-	db, dberr := sql.Open("postgres", connStr) //iki değişken döndürüyor ve sıralamsı db,err şeklinde
-	//bu main bitince çalışıyor
+	db, err := sql.Open("postgres", connStr) //iki değişken döndürüyor ve sıralamsı db,err şeklinde
+	if err != nil {
+		return nil, err
+	}
+	for attempt := 1; attempt <= 5; attempt++ {
+		err = db.Ping()
+		if err == nil { //hata yoksa db dondurur
+			return db, nil
 
-	if dberr != nil {
-		log.Fatal(dberr)
+		}
+		if attempt < 5 {
+			delay := time.Duration(attempt*3) * time.Second //linear bekleme suresi artisi
+			log.Println("Database unavailable, retrying...")
+			time.Sleep(delay)
+		}
 	}
-	if dberr := db.Ping(); dberr != nil { //buradada db ye pingliyoruz hata döndürüyorsa yine logluyoruz
-		log.Fatal(dberr)
-	}
-	return db, nil
+	return nil, err
 }

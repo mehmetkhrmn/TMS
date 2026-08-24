@@ -16,19 +16,23 @@ func Connect() (*sql.DB, error) {
 		" dbname=" + os.Getenv("DB_NAME") +
 		" sslmode=" + os.Getenv("DB_SSLMODE")
 
-	db, dberr := sql.Open("postgres", connStr) //iki değişken döndürüyor ve sıralamsı db,err şeklinde
+	db, err := sql.Open("postgres", connStr) //iki değişken döndürüyor ve sıralamsı db,err şeklinde
 
-	if dberr != nil {
-		return nil, dberr
+	if err != nil {
+		return nil, err
 
 	}
-	for { //bağlantıdan olumlu dönüş alana kadar tekrarlayan mekanizma
-		if err := db.Ping(); err == nil {
-			break
+	for attempt := 1; attempt <= 5; attempt++ {
+		err = db.Ping()
+		if err == nil { //hata yoksa db dondurur
+			return db, nil
+
 		}
-
-		log.Println("Database unavailable, retrying...")
-		time.Sleep(5 * time.Second)
+		if attempt < 5 {
+			delay := time.Duration(attempt*3) * time.Second //linear bekleme suresi artisi
+			log.Println("Database unavailable, retrying...")
+			time.Sleep(delay)
+		}
 	}
-	return db, nil
+	return nil, err
 }

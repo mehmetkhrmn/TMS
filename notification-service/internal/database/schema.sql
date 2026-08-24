@@ -1,8 +1,16 @@
-CREATE TABLE notifications (
-                               id SERIAL PRIMARY KEY,
-                               ticket_id INTEGER NOT NULL,
-                               user_id INTEGER NOT NULL,
-                               type VARCHAR(50) NOT NULL,
-                               message TEXT NOT NULL,
-                               created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+create table notifications
+(
+    id                serial
+        primary key,
+    ticket_id         integer                             not null,
+    recipient_user_id integer                             not null,
+    type              varchar(50)                         not null,
+    message           text                                not null,
+    created_at        timestamp default CURRENT_TIMESTAMP not null,
+    actor_user_id     integer,
+    occurred_at       timestamp with time zone,
+    event_id          uuid
+        unique
 );
+
+

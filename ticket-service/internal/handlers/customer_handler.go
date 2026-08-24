@@ -28,7 +28,11 @@ func GetCustomer(c *gin.Context, repo *repository.Repository) {
 	switch role {
 	case "representative":
 		repId := int(c.GetFloat64("entity_id"))
-		assigned := repo.IsCustomerAssignedToRepresentative(id, repId)
+		assigned, err := repo.IsCustomerAssignedToRepresentative(id, repId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		if !assigned {
 			c.JSON(http.StatusForbidden, gin.H{"error": "customer is not assigned to this representative"})
 			return
@@ -63,7 +67,11 @@ func UpdateCustomer(c *gin.Context, repo *repository.Repository) {
 	switch role {
 	case "representative":
 		repId := int(c.GetFloat64("entity_id"))
-		assigned := repo.IsCustomerAssignedToRepresentative(id, repId)
+		assigned, err := repo.IsCustomerAssignedToRepresentative(id, repId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		if !assigned {
 			c.JSON(http.StatusForbidden, gin.H{"error": "customer is not assigned to this representative"})
 			return
@@ -76,6 +84,8 @@ func UpdateCustomer(c *gin.Context, repo *repository.Repository) {
 			return
 		}
 	default:
+		c.JSON(http.StatusForbidden, gin.H{"error": "can't access this customer with this customer id"})
+		return
 	}
 	var customer models.Customer
 	if err := c.ShouldBind(&customer); err != nil {

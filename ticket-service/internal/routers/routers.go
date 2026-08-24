@@ -13,7 +13,6 @@ import (
 func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 
 	router := gin.Default()
-	gin.SetMode(gin.DebugMode)
 	repo := repository.NewRepository(db)
 	router.Use(middleware2.LimitBodySize())
 
@@ -28,7 +27,12 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 
 	representative := authorized.Group("/")
 	representative.Use(middleware2.RepresentativeMiddleware())
-
+	router.GET("/health/live", func(c *gin.Context) {
+		handlers2.HealthLive(c)
+	})
+	router.GET("/health/ready", func(c *gin.Context) {
+		handlers2.HealthReady(c, db, rabbit)
+	})
 	router.POST("/login", func(context *gin.Context) {
 		handlers2.Login(context, repo)
 	})
@@ -86,7 +90,7 @@ func SetupRouter(db *sql.DB, rabbit *messaging.RabbitMQ) *gin.Engine {
 	})
 	//oluşturmak için
 	customer.POST("/tickets", func(context *gin.Context) {
-		handlers2.CreateTicket(context, repo)
+		handlers2.CreateTicket(context, repo, rabbit)
 	})
 
 	admin.GET("/customers", func(context *gin.Context) {

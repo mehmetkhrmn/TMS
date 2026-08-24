@@ -3,7 +3,6 @@ package handlers
 import (
 	"TMS/ticket-service/internal/messaging"
 	"TMS/ticket-service/internal/models"
-	"TMS/ticket-service/internal/notification"
 	"TMS/ticket-service/internal/repository"
 	"database/sql"
 	"errors"
@@ -84,14 +83,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		return
 	}
 
-	var mesType string
-	if role == "representative" {
-		mesType = "message_replied"
-	} else {
-		mesType = "message_updated"
-	}
-
-	request := notification.NotificationRequest{}
+	request := models.NotificationRequest{}
 	eventID := uuid.New().String()
 	switch role {
 	case "representative":
@@ -100,16 +92,16 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
-		err = repo.CreateActivityLog(tx, id, userID, "message_created", "message", "", "")
+		err = repo.CreateActivityLog(tx, id, userID, models.ActionMessageCreated, "message", "", "")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		request = notification.NotificationRequest{
+		request = models.NotificationRequest{
 			TicketID:        id,
 			ActorUserID:     userID,
 			RecipientUserID: userID2,
-			Type:            mesType,
+			Type:            models.ActionMessageCreated,
 			Message:         "Message created",
 			OccurredAt:      time.Now(),
 			EventID:         eventID,
@@ -124,16 +116,16 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "server"})
 			return
 		}
-		err = repo.CreateActivityLog(tx, id, userID, "message_created", "message", "", "")
+		err = repo.CreateActivityLog(tx, id, userID, models.ActionMessageCreated, "message", "", "")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		request = notification.NotificationRequest{
+		request = models.NotificationRequest{
 			TicketID:        id,
 			ActorUserID:     userID,
 			RecipientUserID: userID2,
-			Type:            mesType,
+			Type:            models.ActionMessageCreated,
 			Message:         "Message created",
 			OccurredAt:      time.Now(),
 			EventID:         eventID,
@@ -307,14 +299,15 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		Message: req.Message,
 	}
 	tx, err := repo.Db.Begin()
-	defer func() {
-		_ = tx.Rollback()
-
-	}()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	defer func() {
+		_ = tx.Rollback()
+
+	}()
+
 	err = repo.UpdateMessage(tx, mid, &message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -331,10 +324,10 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	request := notification.NotificationRequest{
+	request := models.NotificationRequest{
 		TicketID:    tid,
 		ActorUserID: userID,
-		Type:        "message_updated",
+		Type:        models.ActionMessageUpdated,
 		Message:     "Message updated",
 		OccurredAt:  time.Now(),
 		EventID:     eventID,

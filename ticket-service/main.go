@@ -4,11 +4,15 @@ import (
 	"TMS/ticket-service/internal/database"
 	"TMS/ticket-service/internal/messaging"
 	"TMS/ticket-service/internal/routers"
+	"context"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -17,10 +21,9 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)) //bu consolda çıktıları JSON formatında almak için
 	slog.SetDefault(logger)                                 //varsayılanı değiştirdik
-	gin.SetMode(gin.DebugMode)
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		slog.Info(".env file not found,:environment variables will be used")
 	}
 	required := []string{
 		"DB_HOST",
@@ -30,7 +33,6 @@ func main() {
 		"DB_NAME",
 		"DB_SSLMODE",
 		"JWT_SECRET",
-		"NOTIFICATION_SERVICE_URL",
 		"RABBITMQ_URL",
 		"RABBITMQ_QUEUE",
 		"RABBITMQ_ROUTING_KEY",
@@ -53,6 +55,7 @@ func main() {
 			log.Printf("Error closing DB connection")
 		}
 	}()
+
 	rabbit, err := messaging.NewRabbitMQ()
 	if err != nil {
 		log.Fatal(err)
@@ -70,9 +73,6 @@ func main() {
 			log.Printf("Error closing RabbitMQ channel")
 		}
 	}()
-	if err := rabbit.QueueDeclare(); err != nil {
-		log.Fatal(err)
-	}
 
 	r := routers.SetupRouter(db, rabbit)
 	port := os.Getenv("PORT") //portumuzu alıyoruz
@@ -81,9 +81,36 @@ func main() {
 		log.Fatal("PORT is not set")
 	}
 	slog.Info("Sunucu başlatılıyor", "port", port)
-	if err := r.Run(":" + port); err != nil { //burada route başlatıyoruz hata varsa err assinglıyor
-		slog.Error("Sunucu hatası", "error", err.Error())
-		os.Exit(1)
+
+	server := &http.Server{ //serveri kendimiz olusturduk
+		Addr:    ":" + port,
+		Handler: r,
 	}
 
+	go func() { //serveri ayri go routine de baslattik
+		if err := server.ListenAndServe(); err != nil && //istekleri dinliyoruz
+			err != http.ErrServerClosed {
+			slog.Error("Server error", "error", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(
+		quit,
+		syscall.SIGINT,  //ctrl+c
+		syscall.SIGTERM, //quit
+	)
+
+	<-quit //sinyal gelene kadar main burada bekliyor ve kapanmiyor
+
+	ctx, cancel := context.WithTimeout( //zaman siniri koyuyor
+		context.Background(), //bos bir context
+		10*time.Second,       //10 saniye yasiyor
+	)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil { //buradada ctx in olmesini bekliyor olunce shutdown atacak
+		slog.Error("Server shutdown failed", "error", err)
+	}
 }
