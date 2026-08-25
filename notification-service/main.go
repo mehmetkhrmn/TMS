@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
@@ -29,7 +30,9 @@ func main() {
 		slog.Info(".env file not found,:environment variables will be used")
 	}
 	db, err := database.Connect()
-
+	if os.Getenv("GIN_MODE") != "" {
+		gin.SetMode(os.Getenv("GIN_MODE"))
+	}
 	if err != nil {
 		slog.Error("Sunucu hatası", "error", err.Error())
 	}

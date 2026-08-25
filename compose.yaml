@@ -1,0 +1,142 @@
+#servisleri tanitiyoruz ve container icindeki environmentleri tanimliyoruz
+services:
+  #----------------------------------------------[SERVICES]--------------------------------------------------
+  ticket-service:
+    build: ./ticket-service
+    ports:
+      - "8080:8080"
+
+    environment:
+      DB_HOST: ticket-postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${TMS_DB_PASSWORD}
+      DB_NAME: tms_db
+      DB_SSLMODE: disable
+
+      PORT: 8080
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE: notifications
+      RABBITMQ_ROUTING_KEY: notifications
+      RABBITMQ_EXCHANGE: notifications.exchange
+      RABBITMQ_DLX: notifications.dlx
+      RABBITMQ_DLQ: notifications.dlq
+  #Db kontrolu
+    depends_on:
+      ticket-postgres:
+        condition: service_healthy
+  #migrate icn de
+      ticket-migrate:
+        condition: service_completed_successfully
+  #mq kontrolu
+      rabbitmq:
+        condition: service_healthy
+  #----------------------------------------------------------------------------------------------------------
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8081:8081"
+
+    environment:
+      DB_HOST: notification-postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      DB_NAME: notification_db
+      DB_SSLMODE: disable
+
+      PORT: 8081
+
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE: notifications
+      RABBITMQ_EXCHANGE: ""
+      RABBITMQ_ROUTING_KEY: notifications
+
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+      notification-migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+  #----------------------------------------------[DATABASES]-------------------------------------------------
+  ticket-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: tms_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${TMS_DB_PASSWORD}
+    volumes:
+      - tms-db-data:/var/lib/postgresql
+      #db icin healthcehk
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d tms_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  #----------------------------------------------------------------------------------------------------------
+#migrate ile yapicaz ekstra bir container servisi olarak
+  notification-postgres:
+    image: postgres:18
+
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+
+    volumes:
+      - notification-db-data:/var/lib/postgresql
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d notification_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  #----------------------------------------[MIGRATES]--------------------------------------------------------
+  ticket-migrate:
+    image: migrate/migrate
+    depends_on:
+      #ticket postgres basarili ise
+      ticket-postgres:
+        condition: service_healthy
+    volumes:
+      - ./ticket-service/internal/migrations:/migrations
+    command:
+      - "-path=/migrations"
+      - "-database"
+      - "postgres://postgres:${TMS_DB_PASSWORD}@ticket-postgres:5432/tms_db?sslmode=disable"
+      - "up"
+  #----------------------------------------------------------------------------------------------------------
+  notification-migrate:
+    image: migrate/migrate
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+    volumes:
+      - ./notification-service/internal/migrations:/migrations
+    command:
+      - "-path=/migrations"
+      - "-database"
+      - "postgres://postgres:${NOTIFICATION_DB_PASSWORD}@notification-postgres:5432/notification_db?sslmode=disable"
+      - "up"
+  #---------------------------------------------[MQ]---------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "15672:15672"
+
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+#yukarida olusturdugumuz volumelari  ekliyoruz
+volumes:
+  tms-db-data:
+  notification-db-data:

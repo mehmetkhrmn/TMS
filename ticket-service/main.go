@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -42,6 +43,9 @@ func main() {
 		if os.Getenv(key) == "" {
 			log.Fatalf("Required environment variable %s is not set", key)
 		}
+	}
+	if os.Getenv("GIN_MODE") != "" {
+		gin.SetMode(os.Getenv("GIN_MODE"))
 	}
 	db, err := database.Connect()
 	if err != nil {

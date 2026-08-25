@@ -1,5 +1,6 @@
 ticket-service/.env
 notification-service/.env
+.env
 .idea/
 .idea_backup/
 
