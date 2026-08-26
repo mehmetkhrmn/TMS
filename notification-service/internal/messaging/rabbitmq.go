@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
@@ -257,5 +258,14 @@ func IsRetryable(err error) bool {
 			return false
 		}
 	}
+
+	// networkte olusabilcek hatalar de eklendi
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if	netErr.Timeout() || netErr.Temporary(){
+			return true
+		}
+	}
+
 	return false
 }

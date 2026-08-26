@@ -46,7 +46,7 @@ type AuthUser struct {
 	Role         string    `json:"role" binding:"required"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
-	EntityId     int       `json:"entity_id" binding:"required"`
+	EntityId     *int      `json:"entity_id" binding:"required"`
 }
 type LoginRequest struct {
 	Username string `json:"username" binding:"required,min=5,max=255"`

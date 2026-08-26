@@ -14,6 +14,10 @@ RUN go build -o notification-service .
 #artik calismasi icin go diline gerek yok zaten buildlendi baska kucuk bir imageye geciyoruz
 FROM debian:bookworm-slim
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    
 WORKDIR /app
 #onceki buildi buraya kopyaliyoruz
 COPY --from=builder /app/notification-service .

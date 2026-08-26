@@ -35,6 +35,7 @@ func main() {
 	}
 	if err != nil {
 		slog.Error("Sunucu hatası", "error", err.Error())
+		return
 	}
 	rabbit, err := messaging.NewRabbitMQ(os.Getenv("RABBITMQ_URL"))
 	if err != nil {

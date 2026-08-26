@@ -85,6 +85,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 
 	request := models.NotificationRequest{}
 	eventID := uuid.New().String()
+	skipNotif := false
 	switch role {
 	case "representative":
 		userID2, err := repo.GetCustomerUserIDByTicketID(id) //alıcı olacak
@@ -110,8 +111,7 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		userID2, err := repo.GetRepresentativeUserIDByTicketID(id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "representative not assigned"})
-				return
+				skipNotif = true
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "server"})
 			return
@@ -121,19 +121,26 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		request = models.NotificationRequest{
-			TicketID:        id,
-			ActorUserID:     userID,
-			RecipientUserID: userID2,
-			Type:            models.ActionMessageCreated,
-			Message:         "Message created",
-			OccurredAt:      time.Now(),
-			EventID:         eventID,
+		if !skipNotif {
+			request = models.NotificationRequest{
+				TicketID:        id,
+				ActorUserID:     userID,
+				RecipientUserID: userID2,
+				Type:            models.ActionMessageCreated,
+				Message:         "Message created",
+				OccurredAt:      time.Now(),
+				EventID:         eventID,
+			}
 		}
+
 	}
 	err = tx.Commit()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if skipNotif {
+		c.JSON(201, message)
 		return
 	}
 	err = rabbit.PublishNotification(request)

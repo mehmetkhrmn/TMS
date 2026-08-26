@@ -122,7 +122,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			Username:     req.Username,
 			PasswordHash: passwordHash,
 			Role:         "customer",
-			EntityId:     customer.ID,
+			EntityId:     &customer.ID,
 		}
 		err = repo.CreateAuthUser(tx, &insert)
 		if err != nil {
@@ -188,7 +188,7 @@ func Register(c *gin.Context, repo *repository.Repository) {
 			Username:     req.Username,
 			PasswordHash: passwordHash,
 			Role:         "representative",
-			EntityId:     representative.ID,
+			EntityId:     &representative.ID,
 		}
 		err = repo.CreateAuthUser(tx, &insert)
 		if err != nil {
