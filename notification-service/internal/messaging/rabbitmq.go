@@ -77,7 +77,7 @@ func (r *RabbitMQ) Consume(ctx context.Context, repo *repository.Repository) err
 					slog.Error("Notification failed after maximum retries")
 					_ = msg.Nack(false, false)
 					continue
-					continue
+
 				}
 
 				retryCount++
@@ -132,10 +132,18 @@ func (r *RabbitMQ) Connect(url string) error {
 
 	r.Conn = conn //ampq deki conn ve cahaneli Rabbite bagladik
 	r.Channel = channel
+	queue := os.Getenv("RABBITMQ_QUEUE")
+	_, err = r.Channel.QueueDeclare(queue, true, false, false, false, amqp091.Table{"x-dead-letter-exchange": os.Getenv("RABBITMQ_DLX"), "x-dead-letter-routing-key": queue})
+	if err != nil {
+		_ = channel.Close()
+		_ = conn.Close()
+		return err
+	}
 	//Retry queues
 	// Retry queue - 5 saniye
+
 	_, err = r.Channel.QueueDeclare(
-		"notifications.retry.5s",
+		queue+".retry.5s",
 		true,
 		false,
 		false,
@@ -154,7 +162,7 @@ func (r *RabbitMQ) Connect(url string) error {
 
 	// Retry queue - 10 saniye
 	_, err = r.Channel.QueueDeclare(
-		"notifications.retry.10s",
+		queue+".retry.10s",
 		true,
 		false,
 		false,
@@ -173,7 +181,7 @@ func (r *RabbitMQ) Connect(url string) error {
 
 	// Retry queue - 15 saniye
 	_, err = r.Channel.QueueDeclare(
-		"notifications.retry.15s",
+		queue+".retry.15s",
 		true,
 		false,
 		false,
@@ -262,7 +270,7 @@ func IsRetryable(err error) bool {
 	// networkte olusabilcek hatalar de eklendi
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		if	netErr.Timeout() || netErr.Temporary(){
+		if netErr.Timeout() || netErr.Temporary() {
 			return true
 		}
 	}

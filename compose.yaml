@@ -59,7 +59,8 @@ services:
       RABBITMQ_QUEUE: notifications
       RABBITMQ_EXCHANGE: ""
       RABBITMQ_ROUTING_KEY: notifications
-
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_DLX: notifications.dlx
     depends_on:
       notification-postgres:
         condition: service_healthy
@@ -76,6 +77,8 @@ services:
   #----------------------------------------------[DATABASES]-------------------------------------------------
   ticket-postgres:
     image: postgres:18
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: tms_db
       POSTGRES_USER: postgres
@@ -92,7 +95,8 @@ services:
 #migrate ile yapicaz ekstra bir container servisi olarak
   notification-postgres:
     image: postgres:18
-
+    ports:
+      - "5434:5432"
     environment:
       POSTGRES_DB: notification_db
       POSTGRES_USER: postgres
@@ -147,6 +151,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1:5050:80"
 #yukarida olusturdugumuz volumelari  ekliyoruz
 volumes:
   tms-db-data:

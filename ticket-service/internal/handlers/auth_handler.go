@@ -33,13 +33,18 @@ func Login(c *gin.Context, repo *repository.Repository) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{ //jwt token oluştu
-		"user_id":   authUser.ID,
-		"role":      authUser.Role,
-		"entity_id": authUser.EntityId,
-		"exp":       time.Now().Add(24 * time.Hour).Unix(),
-		"iat":       time.Now().Unix(),
-	})
+	claims := jwt.MapClaims{
+		"user_id": authUser.ID,
+		"role":    authUser.Role,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+
+	if authUser.EntityId != nil {
+		claims["entity_id"] = *authUser.EntityId
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	//zaten jwt secret mainde kontrol ediliyor
 	secretKey := []byte(os.Getenv("JWT_SECRET"))
 	tokenString, err := token.SignedString(secretKey)

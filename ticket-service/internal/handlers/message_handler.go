@@ -112,9 +112,10 @@ func CreateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				skipNotif = true
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "server"})
+				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "server"})
-			return
 		}
 		err = repo.CreateActivityLog(tx, id, userID, models.ActionMessageCreated, "message", "", "")
 		if err != nil {

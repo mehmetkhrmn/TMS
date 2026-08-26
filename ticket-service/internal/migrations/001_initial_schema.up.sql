@@ -7,6 +7,9 @@ CREATE TYPE activity_action AS ENUM (
     'assignment_revoked',
     'assignment_granted',
     'message_replied'
+    'message_created'
+    'ticket_granted'
+    'ticket_revoked'
     );
 
 CREATE TABLE representatives

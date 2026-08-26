@@ -71,3 +71,42 @@ func (r *Repository) GetNotification(notificationId int) (*models.Notification, 
 	return &notification, nil
 
 }
+func (r *Repository) GetNotificationByUserId(userId int) ([]models.Notification, error) {
+	query := "SELECT id,ticket_id,actor_user_id,recipient_user_id,type,message,created_at,occurred_at,event_id FROM notifications WHERE notifications.recipient_user_id = $1"
+	rows, err := r.Db.Query(query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var notifications []models.Notification
+	for rows.Next() {
+		var notification models.Notification
+		if err := rows.Scan(
+			&notification.ID,
+			&notification.TicketID,
+			&notification.ActorUserID,
+			&notification.RecipientUserID,
+			&notification.Type,
+			&notification.Message,
+			&notification.CreatedAt,
+			&notification.OccurredAt,
+			&notification.EventID,
+		); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return []models.Notification{}, nil
+			}
+			return nil, err
+		}
+		notifications = append(notifications, notification)
+	}
+	return notifications, nil
+}
+func (r *Repository) IsRecipientOfNotification(userId int, notifId int) (bool, error) {
+	query := "SELECT EXISTS (SELECT 1  FROM notifications    WHERE recipient_user_id = $1     AND id = $2);"
+	var exists bool
+	err := r.Db.QueryRow(query, userId, notifId).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}

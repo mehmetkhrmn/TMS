@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -33,6 +34,10 @@ func AuthMiddleware() gin.HandlerFunc { //Bu fonsiyon loginde oluşturduğumjuz 
 			tokenString,
 			claims,
 			func(token *jwt.Token) (interface{}, error) {
+				if token.Method != jwt.SigningMethodHS256 {
+					return nil, fmt.Errorf("unexpected signing method")
+				}
+
 				return []byte(os.Getenv("JWT_SECRET")), nil
 			},
 		)
@@ -54,8 +59,11 @@ func AuthMiddleware() gin.HandlerFunc { //Bu fonsiyon loginde oluşturduğumjuz 
 		}
 
 		c.Set("role", claims["role"].(string))
-		c.Set("user_id", claims["user_id"].(float64)) //json sayıları float64 müş
-		c.Set("entity_id", claims["entity_id"].(float64))
+		c.Set("user_id", claims["user_id"].(float64))
+
+		if entityID, ok := claims["entity_id"].(float64); ok {
+			c.Set("entity_id", entityID)
+		}
 		c.Next() //devam et
 	}
 }

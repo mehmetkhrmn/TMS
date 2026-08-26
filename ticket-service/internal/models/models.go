@@ -91,7 +91,7 @@ const (
 	ActionStatusChanged  = "status_changed"
 	ActionMessageCreated = "message_created"
 	ActionMessageUpdated = "message_updated"
-	ActionTicketRevoked  = "tícket_revoked"
+	ActionTicketRevoked  = "ticket_revoked"
 	ActionTicketGranted  = "ticket_granted"
 	ActionMessageReplied = "message_replied"
 )

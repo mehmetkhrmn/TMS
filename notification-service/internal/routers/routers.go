@@ -3,6 +3,7 @@ package routers
 import (
 	"TMS/notification-service/internal/handlers"
 	"TMS/notification-service/internal/messaging"
+	"TMS/notification-service/internal/middleware"
 	"TMS/notification-service/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ import (
 func SetupRouter(repo *repository.Repository, rabbit *messaging.RabbitMQ) *gin.Engine {
 	router := gin.Default()
 	notifications := router.Group("/notifications")
+	notifications.Use(middleware.AuthMiddleware())
 	router.GET("/health/live", func(c *gin.Context) {
 		handlers.HealthLive(c)
 	})
