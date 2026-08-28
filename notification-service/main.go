@@ -7,7 +7,6 @@ import (
 	"TMS/notification-service/internal/routers"
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,17 +28,21 @@ func main() {
 	if err != nil {
 		slog.Info(".env file not found,:environment variables will be used")
 	}
-	db, err := database.Connect()
 	if os.Getenv("GIN_MODE") != "" {
 		gin.SetMode(os.Getenv("GIN_MODE"))
 	}
+
+	db, err := database.Connect()
+
 	if err != nil {
-		slog.Error("Sunucu hatası", "error", err.Error())
+		slog.Error("Server error", "error", err.Error())
 		return
 	}
+
 	rabbit, err := messaging.NewRabbitMQ(os.Getenv("RABBITMQ_URL"))
+
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("RabbitMQ connection failed", "error", err)
 		return
 	}
 	repo := repository.NewRepository(db)
@@ -87,7 +90,7 @@ func main() {
 	if port == "" {
 		port = "8081"
 	}
-	slog.Info("Sunucu başlatılıyor", "port", port)
+	slog.Info("Server starting", "port", port)
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,

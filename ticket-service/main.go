@@ -49,7 +49,7 @@ func main() {
 	}
 	db, err := database.Connect()
 	if err != nil {
-		slog.Error("Sunucu hatası", "error", err.Error())
+		slog.Error("Server error", "error", err.Error())
 		return
 	}
 
@@ -84,7 +84,7 @@ func main() {
 	if port == "" {
 		log.Fatal("PORT is not set")
 	}
-	slog.Info("Sunucu başlatılıyor", "port", port)
+	slog.Info("Server starting", "port", port)
 
 	server := &http.Server{ //serveri kendimiz olusturduk
 		Addr:    ":" + port,

@@ -6,9 +6,10 @@ CREATE TYPE activity_action AS ENUM (
     'answer_updated',
     'assignment_revoked',
     'assignment_granted',
-    'message_replied'
-    'message_created'
-    'ticket_granted'
+    'message_replied',
+    'message_created',
+    'message_updated',
+    'ticket_granted',
     'ticket_revoked'
     );
 

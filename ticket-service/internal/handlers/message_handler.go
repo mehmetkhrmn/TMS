@@ -283,16 +283,6 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		return
 
 	}
-
-	ok, err = repo.IsMessageMatchWithUser(mid, userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if !ok {
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-		return
-	}
 	oldValue, err := repo.GetMessage(mid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -340,7 +330,7 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		OccurredAt:  time.Now(),
 		EventID:     eventID,
 	}
-
+	skipNotif := false
 	switch role {
 	case "representative":
 		// Bildirim customer'a gidecek
@@ -355,15 +345,21 @@ func UpdateMessage(c *gin.Context, repo *repository.Repository, rabbit *messagin
 		// Bildirim representative'a gidecek
 		userID2, err := repo.GetRepresentativeUserIDByTicketID(tid)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+			if errors.Is(err, sql.ErrNoRows) {
+				skipNotif = true
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		} else {
+			request.RecipientUserID = userID2
 		}
-		request.RecipientUserID = userID2
 	}
-
-	err = rabbit.PublishNotification(request)
-	if err != nil {
-		slog.Error("Notification can't publish", "error", err)
+	if !skipNotif {
+		err = rabbit.PublishNotification(request)
+		if err != nil {
+			slog.Error("Notification can't publish", "error", err)
+		}
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "updated"})
 }
